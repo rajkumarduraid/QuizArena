@@ -155,6 +155,29 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  /* --- a host-supplied avatar pack, if there is one --------------------- */
+  if (/^\/?avatars\//.test(url.pathname.replace(/^\/+/, '/'))) {
+    const rel = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+    const file = path.resolve(__dirname, rel);
+    const root = path.resolve(__dirname, 'avatars');
+    /* never serve outside the avatars folder, whatever the path says */
+    if (file !== root && !file.startsWith(root + path.sep)) { res.writeHead(403).end('Forbidden'); return; }
+    fs.readFile(file, (err, buf) => {
+      if (err) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not found'); return; }
+      const ext = path.extname(file).toLowerCase();
+      const types = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+                      '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+                      '.avif': 'image/avif', '.json': 'application/json; charset=utf-8' };
+      res.writeHead(200, {
+        'Content-Type': types[ext] || 'application/octet-stream',
+        'Content-Length': buf.length,
+        'Cache-Control': ext === '.json' ? 'no-store' : 'public, max-age=300'
+      });
+      res.end(buf);
+    });
+    return;
+  }
+
   /* --- the page itself ------------------------------------------------ */
   if (req.method === 'GET' || req.method === 'HEAD') {
     fs.readFile(PAGE, (err, buf) => {

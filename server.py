@@ -21,7 +21,7 @@ import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("PORT", 8080))
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -32,6 +32,10 @@ MAX_BODY = 256 * 1024         # per message
 KEEP_MSGS = 200               # per room backlog
 MAX_ROOMS = 200
 ROOM_TTL_S = 6 * 60 * 60
+
+def path_is_avatar(p):
+    return urlparse(p).path.lstrip("/").startswith("avatars/")
+
 
 _lock = threading.Condition()
 _rooms = {}                   # code -> {"seq": int, "msgs": [(seq, obj)], "touched": float}
@@ -128,6 +132,9 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, {"seq": r["seq"], "msgs": msgs})
             return
 
+        if path_is_avatar(self.path):
+            self._serve_avatar(body)
+            return
         self._serve_page(body)
 
     def do_HEAD(self):
@@ -164,6 +171,34 @@ class Handler(BaseHTTPRequestHandler):
             seq = r["seq"]
             _lock.notify_all()
         self._json(200, {"ok": True, "seq": seq})
+
+    # ------------------------------------------------------------- avatars
+    def _serve_avatar(self, body=True):
+        rel = unquote(urlparse(self.path).path).lstrip("/")
+        target = os.path.realpath(os.path.join(HERE, rel))
+        root = os.path.realpath(os.path.join(HERE, "avatars"))
+        # never serve outside the avatars folder, whatever the path says
+        if target != root and not target.startswith(root + os.sep):
+            self.send_response(403); self.end_headers(); return
+        try:
+            with open(target, "rb") as fh:
+                buf = fh.read()
+        except OSError:
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        ext = os.path.splitext(target)[1].lower()
+        types = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                 ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
+                 ".avif": "image/avif", ".json": "application/json; charset=utf-8"}
+        self.send_response(200)
+        self.send_header("Content-Type", types.get(ext, "application/octet-stream"))
+        self.send_header("Content-Length", str(len(buf)))
+        self.send_header("Cache-Control", "no-store" if ext == ".json" else "public, max-age=300")
+        self.end_headers()
+        if body:
+            self.wfile.write(buf)
 
     # ---------------------------------------------------------------- page
     def _serve_page(self, body=True):

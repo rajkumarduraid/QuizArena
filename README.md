@@ -49,7 +49,7 @@ host can pop it into a second window from the lobby.
 | **Leaderboard** | Live scores with per-round deltas and streaks |
 | **Team race** | Totals *and* per-player averages, so an uneven split can't hide |
 | **Final results** | Podium, full table with average and fastest times, CSV/JSON export |
-| **Avatars** | 30 drawn characters, one per player, shown on every board so people are recognisable at a glance |
+| **Avatars** | 30 drawn heroes, one per player, shown on every board so people are recognisable at a glance |
 
 Scoring is configurable: how much speed is worth, a bonus for the fastest
 correct answer, a streak bonus, and an optional penalty for wrong answers.
@@ -119,6 +119,47 @@ Open a room and read the pill at the top-left of the lobby:
 | 🌐 **Open to any device** | Working — over the relay if you started a server, otherwise peer-to-peer. |
 | 💻 **This device only** | Set that way under *Rules & access*. Only other tabs here can join. |
 | ⚠️ **Could not reach the connection service** | Peer-to-peer is blocked. Start the server as above. |
+
+---
+
+## Using your own avatar pictures
+
+The 30 built-in heroes are drawn in the page, so they need no files and look
+the same everywhere. If you would rather use your own pictures, put them in an
+`avatars/` folder beside `index.html` with a `manifest.json`:
+
+```
+index.html
+avatars/
+  manifest.json
+  ranjith.png
+  priya.png
+  …
+```
+
+```json
+{
+  "avatars": [
+    { "name": "Ranjith", "src": "ranjith.png" },
+    { "name": "Priya",   "src": "priya.png" }
+  ]
+}
+```
+
+The page checks for that manifest on load. Find one and it replaces the whole
+built-in cast — picker, lobby, leaderboard, podium, results. Find nothing and
+the drawn heroes stay. Nothing else to configure.
+
+- Square images work best; 128×128 is plenty. PNG, JPG, WebP, GIF, AVIF or SVG.
+- Up to 60 entries.
+- Only the chosen *index* travels between devices, so pictures never go over
+  the wire between players — each device loads them from wherever the page came
+  from. Everyone must therefore load the same page, which they already do.
+- Both bundled servers serve the folder, and so does GitHub Pages if you commit
+  it. Paths are confined to `avatars/`.
+
+Whatever you put in that folder is your call — make sure you have the right to
+use the images, particularly for anything published or used at work.
 
 ---
 
