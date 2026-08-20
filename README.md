@@ -50,6 +50,7 @@ host can pop it into a second window from the lobby.
 | **Team race** | Totals *and* per-player averages, so an uneven split can't hide |
 | **Final results** | Podium, full table with average and fastest times, CSV/JSON export |
 | **Avatars** | 30 drawn heroes, one per player, shown on every board so people are recognisable at a glance |
+| **Picture rounds** | Attach an image to any question — it appears above the answers on every screen |
 
 Scoring is configurable: how much speed is worth, a bonus for the fastest
 correct answer, a streak bonus, and an optional penalty for wrong answers.
@@ -119,6 +120,32 @@ Open a room and read the pill at the top-left of the lobby:
 | 🌐 **Open to any device** | Working — over the relay if you started a server, otherwise peer-to-peer. |
 | 💻 **This device only** | Set that way under *Rules & access*. Only other tabs here can join. |
 | ⚠️ **Could not reach the connection service** | Peer-to-peer is blocked. Start the server as above. |
+
+---
+
+## Picture rounds
+
+Any question can carry an image. Open the question in the builder and use
+**Add a picture** — click to choose a file, drop one onto the question, or
+paste a screenshot straight in.
+
+Whatever you give it is re-encoded before it is stored: the longest edge is
+capped at 1280px and quality steps down until the result fits comfortably in
+one message. A 900 KB phone photo typically lands around 60–130 KB.
+
+The picture then shows above the answers on the host screen, every player's
+device and the projector dashboard, and stays up through the reveal.
+
+A few things worth knowing:
+
+- Images live inside the quiz, so they are saved with it, included in the JSON
+  export, and travel with an import. A quiz with pictures makes for a much
+  larger export file.
+- Browsers cap local storage at a few megabytes. Add enough pictures and the
+  app will tell you it is out of room rather than silently losing one — remove
+  a picture or export the quiz if that happens.
+- The image is sent once when its question opens, not with every update.
+  Anyone who joins mid-question, or reconnects, asks for it and gets it.
 
 ---
 

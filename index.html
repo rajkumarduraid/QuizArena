@@ -330,6 +330,31 @@ input[type=color].inp{padding:3px; height:40px; cursor:pointer}
 .brief-rules .ico{width:16px;height:16px;flex:none;margin-top:2px;color:var(--brand)}
 .brief-rules b{color:var(--ink); font-weight:600}
 
+/* ---------- question images ---------- */
+.qimg-drop{display:flex; align-items:center; gap:10px; width:100%; padding:13px 15px;
+  border:1.5px dashed var(--line-2); border-radius:var(--r-m); background:var(--surface-2);
+  color:var(--muted); font-size:13.5px; font-weight:600; text-align:left;
+  transition:border-color .16s, background .16s, color .16s}
+.qimg-drop:hover,.qcard.dragover .qimg-drop{border-color:var(--brand); background:var(--brand-soft); color:var(--brand)}
+.qimg-drop .ico{width:19px;height:19px}
+.qimg-drop small{display:block; font-weight:400; color:var(--faint); font-size:12px; margin-top:1px}
+.qimg-wrap{display:flex; gap:12px; align-items:flex-start}
+.qimg-wrap img{width:132px; height:92px; object-fit:cover; border-radius:11px;
+  border:1px solid var(--line); background:var(--sunken); flex:none}
+.qimg-meta{display:flex; flex-direction:column; gap:7px; min-width:0}
+.qimg-meta .sz{font-size:12px; color:var(--faint); font-variant-numeric:tabular-nums}
+.qimg-busy{display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--muted)}
+.qimg-busy .ico{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* the picture as the room sees it */
+.qmedia{display:block; margin-inline:auto; max-width:100%; border-radius:var(--r-m);
+  border:1px solid var(--line); background:var(--surface); box-shadow:var(--sh-1);
+  object-fit:contain; animation:rise .4s var(--ease) both}
+.stage .qmedia{max-height:min(38vh,340px)}
+.play-body .qmedia{max-height:min(28vh,220px)}
+#dash-main .qmedia{max-height:min(34vh,300px)}
+
 /* ---------- teams ---------- */
 .team-row{display:flex; align-items:center; gap:9px; padding:9px; border-radius:11px;
   background:var(--surface-2); border:1px solid var(--line)}
@@ -1092,6 +1117,8 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 </section>
 
 <!-- ============================ MODAL ============================ -->
+<input type="file" id="img-input" accept="image/*" hidden>
+
 <div class="modal-bg" id="modal-bg"><div class="modal" id="modal"></div></div>
 
 
@@ -3854,6 +3881,76 @@ function Net(opts) {
 }
 
 
+
+/* ==========================================================================
+   Question images
+
+   Whatever a host drags in — a 6MB phone photo, a screenshot — has to survive
+   localStorage (a few MB in total), one relay message (256KB), and a
+   projector. So every image is re-encoded down to a sane size before it is
+   ever stored: longest edge capped, quality stepped down until it fits.
+   ======================================================================== */
+const IMG_MAX_EDGE = 1280;
+const IMG_BUDGET = 140 * 1024;      /* data-URI characters, keeps a relay message small */
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result));
+    fr.onerror = () => reject(new Error('Could not read that file'));
+    fr.readAsDataURL(file);
+  });
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('That file is not an image the browser can open'));
+    img.src = src;
+  });
+}
+
+/* Returns a data URI, or rejects with a message worth showing the host. */
+function shrinkImage(src) {
+  return loadImage(src).then(img => {
+    const w0 = img.naturalWidth, h0 = img.naturalHeight;
+    if (!w0 || !h0) throw new Error('That image has no size');
+    let scale = Math.min(1, IMG_MAX_EDGE / Math.max(w0, h0));
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const encode = (sc, quality) => {
+      canvas.width = Math.max(1, Math.round(w0 * sc));
+      canvas.height = Math.max(1, Math.round(h0 * sc));
+      /* flatten onto white: the page is light, and dropping the alpha channel
+         is what makes jpeg/webp worth using here */
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      let out = '';
+      try { out = canvas.toDataURL('image/webp', quality); } catch (e) { out = ''; }
+      if (out.indexOf('data:image/webp') !== 0) out = canvas.toDataURL('image/jpeg', quality);
+      return out;
+    };
+
+    let quality = 0.82;
+    let out = encode(scale, quality);
+    /* step quality down first, then dimensions — detail matters less than
+       the picture being visible at all */
+    while (out.length > IMG_BUDGET && quality > 0.4) {
+      quality -= 0.12;
+      out = encode(scale, quality);
+    }
+    while (out.length > IMG_BUDGET && scale > 0.28) {
+      scale *= 0.78;
+      out = encode(scale, quality);
+    }
+    if (out.length > IMG_BUDGET) throw new Error('That image is too detailed to shrink — try a smaller one');
+    return out;
+  });
+}
+
 /* ==========================================================================
    Motion helpers
    ======================================================================== */
@@ -3910,6 +4007,7 @@ window.QA = {
   $, $$, esc, clamp, uid, roomCode, secs, mmss, nf, now,
   shape, ico, markSVG, ACOLORS, AHEX, TEAM_PALETTE,
   countUp, flip, codeLetters, reduced,
+  shrinkImage, readFileAsDataURL, IMG_BUDGET,
   toast, modal, LS, SS, Sound, Confetti,
   LocalBus, PeerHost, PeerClient, RelayBus, Net, PEER_PREFIX, findRelay
 };
@@ -4484,7 +4582,8 @@ window.QA.Views = {
 (function () {
 'use strict';
 const Q = window.QA;
-const { $, $$, esc, clamp, uid, toast, modal, LS, shape, ico, ACOLORS, TEAM_PALETTE, nf, mmss } = Q;
+const { $, $$, esc, clamp, uid, toast, modal, LS, shape, ico, ACOLORS, TEAM_PALETTE, nf, mmss,
+        shrinkImage, readFileAsDataURL } = Q;
 
 const CFG_KEY = 'qa:config:v1';
 const LIB_KEY = 'qa:library:v1';
@@ -4549,6 +4648,7 @@ function normaliseQuestion(raw, def) {
   q.time = Number.isFinite(t) ? clamp(Math.round(t), 5, 300) : q.time;
   const p = Number(raw.points);
   q.points = Number.isFinite(p) ? clamp(Math.round(p), 0, 5000) : q.points;
+  if (typeof raw.image === 'string' && /^data:image\//.test(raw.image)) q.image = raw.image;
   return q;
 }
 function normaliseConfig(raw) {
@@ -4647,6 +4747,7 @@ function renderQuestions() {
         '<span class="qtitle' + (q.text.trim() ? '' : ' empty') + '">' + (q.text.trim() ? esc(q.text) : 'Untitled question') + '</span>' +
         '<span class="qmeta">' +
           (st.bad ? '<span class="pill warn" title="Needs a question, at least two options, and a correct answer">Incomplete</span>' : '') +
+          (q.image ? '<span class="pill" title="Has a picture">' + ico('file') + '</span>' : '') +
           '<span class="pill">' + q.time + 's</span>' +
           '<span class="pill">' + nf(q.points) + ' pts</span>' +
           '<button class="btn-ico" data-act="up" title="Move up" aria-label="Move up">' + ico('chevron-up') + '</button>' +
@@ -4670,6 +4771,7 @@ function renderQuestions() {
           '</div>' +
           (q.options.length < 6 ? '<button class="btn ghost sm" data-act="addopt" style="margin-top:9px;align-self:flex-start">' + ico('plus') + 'Add option</button>' : '') +
         '</div>' +
+        '<div class="field"><label>Picture (optional)</label>' + imageBlock(q) + '</div>' +
         '<div class="grid2">' +
           '<div class="field"><label>Seconds to answer</label><input class="inp" type="number" data-f="time" min="5" max="300" value="' + q.time + '"></div>' +
           '<div class="field"><label>Points at stake</label><input class="inp" type="number" data-f="points" min="0" max="5000" step="50" value="' + q.points + '"></div>' +
@@ -4698,6 +4800,120 @@ function renderSummary() {
 
 function qById(id) { return cfg.questions.find(q => q.id === id); }
 
+/* ------------------------------------------------------------ pictures */
+function imageBlock(q) {
+  if (!q.image) {
+    return '<button type="button" class="qimg-drop" data-act="addimg">' + ico('upload') +
+      '<span>Add a picture' +
+      '<small>Click to choose, or drop a file on this question, or paste one</small></span></button>';
+  }
+  return '<div class="qimg-wrap">' +
+    '<img src="' + esc(q.image) + '" alt="">' +
+    '<div class="qimg-meta">' +
+      '<span class="sz">' + Math.round(q.image.length / 1024) + ' KB · shown above the answers</span>' +
+      '<div class="row" style="gap:7px">' +
+        '<button type="button" class="btn ghost xs" data-act="addimg">' + ico('refresh') + 'Replace</button>' +
+        '<button type="button" class="btn ghost xs danger" data-act="rmimg">' + ico('cross') + 'Remove</button>' +
+      '</div>' +
+    '</div></div>';
+}
+
+function setBusy(card, on) {
+  const slot = card && $('.qimg-drop, .qimg-wrap', card);
+  if (slot && on) {
+    slot.outerHTML = '<span class="qimg-busy">' + ico('refresh') + 'Shrinking the picture…</span>';
+  }
+}
+
+/* Whatever comes in — file, drop, paste — funnels through here. */
+function attachImage(q, src, card) {
+  setBusy(card, true);
+  return shrinkImage(src).then(out => {
+    q.image = out;
+    if (!LS.set(CFG_KEY, cfg)) {
+      delete q.image;
+      renderQuestions();
+      toast('No room left in this browser for another picture. Remove one first, or export the quiz.', 'bad', 6000);
+      return;
+    }
+    renderQuestions();
+    toast('Picture added', 'ok');
+  }).catch(err => {
+    renderQuestions();
+    toast(err && err.message ? err.message : 'That picture could not be used', 'bad', 5000);
+  });
+}
+
+function pickImageFor(qid) {
+  const input = $('#img-input');
+  if (!input) return;
+  input.value = '';
+  input.dataset.q = qid;
+  input.click();
+}
+
+function wireImages() {
+  const list = $('#qlist');
+  const input = $('#img-input');
+
+  input.onchange = () => {
+    const file = input.files && input.files[0];
+    const q = qById(input.dataset.q);
+    if (!file || !q) return;
+    readFileAsDataURL(file)
+      .then(src => attachImage(q, src, $('.qcard[data-q="' + q.id + '"]')))
+      .catch(e => toast(e.message, 'bad'));
+  };
+
+  /* drop a file straight onto the question it belongs to */
+  list.addEventListener('dragover', e => {
+    const card = e.target.closest('.qcard');
+    if (!card || !e.dataTransfer || Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') < 0) return;
+    e.preventDefault();
+    card.classList.add('dragover');
+  });
+  list.addEventListener('dragleave', e => {
+    const card = e.target.closest('.qcard');
+    if (card && !card.contains(e.relatedTarget)) card.classList.remove('dragover');
+  });
+  list.addEventListener('drop', e => {
+    const card = e.target.closest('.qcard');
+    if (!card) return;
+    card.classList.remove('dragover');
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    e.preventDefault();
+    const q = qById(card.dataset.q);
+    if (!q) return;
+    if (!/^image\//.test(file.type)) { toast('That is not an image file', 'bad'); return; }
+    if (openQ !== q.id) { openQ = q.id; renderQuestions(); }
+    readFileAsDataURL(file)
+      .then(src => attachImage(q, src, $('.qcard[data-q="' + q.id + '"]')))
+      .catch(err => toast(err.message, 'bad'));
+  });
+
+  /* paste a screenshot into whichever question is open */
+  document.addEventListener('paste', e => {
+    if (!$('#s-build').classList.contains('on') || !openQ) return;
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type && items[i].type.indexOf('image/') === 0) {
+        const file = items[i].getAsFile();
+        const q = qById(openQ);
+        if (!file || !q) return;
+        e.preventDefault();
+        readFileAsDataURL(file)
+          .then(src => attachImage(q, src, $('.qcard[data-q="' + q.id + '"]')))
+          .catch(err => toast(err.message, 'bad'));
+        return;
+      }
+    }
+  });
+}
+
+
 function wireQuestions() {
   const host = $('#qlist');
   host.addEventListener('click', e => {
@@ -4722,6 +4938,8 @@ function wireQuestions() {
       }
     }
     else if (act === 'addopt') { if (q.options.length < 6) q.options.push(''); }
+    else if (act === 'addimg') { pickImageFor(q.id); return; }
+    else if (act === 'rmimg') { delete q.image; }
     else return;
     save(); renderQuestions();
   });
@@ -4922,7 +5140,11 @@ function doExport() {
   const out = {
     app: 'Quiz Arena', version: 1, title: cfg.title || 'Untitled quiz',
     teams: cfg.teamsEnabled ? cfg.teams : undefined,
-    questions: cfg.questions.map(q => ({ text: q.text, options: q.options, correct: q.correct, time: q.time, points: q.points }))
+    questions: cfg.questions.map(q => {
+      const out = { text: q.text, options: q.options, correct: q.correct, time: q.time, points: q.points };
+      if (q.image) out.image = q.image;       /* the quiz is not complete without it */
+      return out;
+    })
   };
   const slug = (cfg.title || 'quiz').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'quiz';
   download(slug + '.json', JSON.stringify(out, null, 2)).then(ok => { if (ok) toast('Quiz exported', 'ok'); });
@@ -4999,7 +5221,7 @@ function initBuilder() {
   $('#btn-export').onclick = doExport;
   $('#btn-library').onclick = doLibrary;
 
-  wireQuestions(); wireTeams(); wireRules();
+  wireQuestions(); wireImages(); wireTeams(); wireRules();
   renderAll();
 }
 
@@ -5140,7 +5362,8 @@ function snapshot() {
     title: G.cfg.title || 'Quiz',
     total: G.order.length,
     qi: G.qi,
-    q: showQ && q ? { text: q.text, options: q.options, time: q.time, points: q.points } : null,
+    q: showQ && q ? { text: q.text, options: q.options, time: q.time, points: q.points,
+                      hasImage: !!q.image } : null,
     endsIn: G.phase === 'question' && G.cur ? Math.max(0, G.cur.endsAt - now()) : 0,
     answeredNow: G.cur ? Object.keys(G.cur.answers).length : 0,
     reveal: (G.phase === 'reveal' && h) ? h : null,
@@ -5267,6 +5490,10 @@ function onPlayerMessage(m) {
   }
   if (m.t === 'ans') { handleAnswer(m); return; }
   if (m.t === 'sync') { bcast(true); return; }
+  if (m.t === 'needimg') {
+    if (m.qi === G.qi) sendQuestionImage(m.pid);
+    return;
+  }
 }
 
 function smallestTeam() {
@@ -5351,9 +5578,21 @@ function askQuestion() {
   playersArr().forEach(p => { p.lastGain = null; p.lastMs = null; p.lastRight = null; });
   Sound.start();
   bcast(true);
+  sendQuestionImage();
   lastStageKey = '';
   showScreen('s-stage');
   renderStage();
+}
+
+/* A picture is far larger than everything else in a snapshot, so it is sent
+   once when the question opens and cached by each device. Anyone who joins
+   late, reconnects, or simply misses the message asks for it by round. */
+function sendQuestionImage(toPid) {
+  const q = curQ();
+  if (!q || !q.image || !G.net) return;
+  G.net.send(toPid
+    ? { t: 'img', to: toPid, code: G.code, qi: G.qi, src: q.image }
+    : { t: 'img', code: G.code, qi: G.qi, src: q.image });
 }
 
 function reveal() {
@@ -5593,7 +5832,9 @@ function renderLobby() {
   $('#runsheet').innerHTML = G.order.map((oi, i) => {
     const q = G.cfg.questions[oi];
     return '<tr><td class="num">' + (i + 1) + '</td>' +
-      '<td style="white-space:normal;max-width:420px">' + esc(q.text) + '</td>' +
+      '<td style="white-space:normal;max-width:420px">' +
+        (q.image ? '<span style="color:var(--brand);display:inline-flex;vertical-align:-3px;margin-right:5px">' + ico('file') + '</span>' : '') +
+        esc(q.text) + '</td>' +
       '<td><span style="color:' + Q.AHEX[q.correct] + ';display:inline-flex;vertical-align:-2px">' +
         shape(q.correct) + '</span> ' + esc(q.options[q.correct]) + '</td>' +
       '<td class="num">' + q.time + 's</td><td class="num">' + nf(q.points) + '</td></tr>';
@@ -5646,6 +5887,7 @@ function renderStage() {
           '</div>' +
           '<span class="pill accent">' + nf(curQ().points) + ' points at stake</span>' +
         '</div>' +
+        (curQ().image ? '<img class="qmedia" src="' + esc(curQ().image) + '" alt="">' : '') +
         '<div class="qtext">' + esc(curQ().text) + '</div>' +
         V.answersHTML(snap, { deal: true }) +
         '<div class="card tight"><h3 style="font-size:14px;margin-bottom:9px">Answers landing</h3><div id="stage-ticker">' +
@@ -5663,6 +5905,7 @@ function renderStage() {
   if (G.phase === 'reveal') {
     const h = snap.reveal;
     main.innerHTML =
+      (curQ() && curQ().image ? '<img class="qmedia" src="' + esc(curQ().image) + '" alt="" style="max-height:min(24vh,210px);margin-bottom:12px">' : '') +
       '<div class="qtext" style="font-size:clamp(19px,3vw,32px);padding:18px 22px">' + esc(h.text) + '</div>' +
       V.answersHTML(snap, { reveal: true }) +
       V.fastestHTML(snap) +
@@ -5980,7 +6223,8 @@ const P = {
   picked: Object.create(null),      /* qid -> chosen index          */
   lockedMs: Object.create(null),    /* qid -> host-measured ms      */
   hb: 0, tick: 0, renderKey: '', ring: null, endsAt: 0,
-  joinWait: 0, peerText: '', ok: false, avatar: null
+  joinWait: 0, peerText: '', ok: false, avatar: null,
+  images: Object.create(null), imgAsked: Object.create(null)
 };
 
 function pid() {
@@ -6009,6 +6253,7 @@ function startPlayer(code, name, team, avatar) {
   if (avatar != null) P.avatar = avatar;
   P.snap = null; P.lastSnapAt = 0; P.ok = false;
   P.picked = Object.create(null); P.lockedMs = Object.create(null);
+  P.images = Object.create(null); P.imgAsked = Object.create(null);
   if (P.net) { try { P.net.close(); } catch (e) {} }
   P.net = connect(code, onHostMessage, (state, text) => {
     P.peerText = text || state;
@@ -6093,14 +6338,40 @@ function onHostMessage(m) {
     return;
   }
   if (m.t === 'locked') { P.lockedMs[m.qid] = m.ms; renderPlayer(); return; }
+  if (m.t === 'img') {
+    if (typeof m.src === 'string' && /^data:image\//.test(m.src)) {
+      P.images[m.qi] = m.src;
+      P.renderKey = '';
+      renderPlayer();
+    }
+    return;
+  }
   if (m.t === 'st') {
     P.snap = m.s; P.lastSnapAt = now();
     if (!P.ok) { P.ok = true; clearInterval(P.joinWait); Q.Host.showScreen('s-play'); }
     if (m.s.phase === 'question') P.endsAt = now() + (m.s.endsIn || 0);
+    askForImage(m.s);
     renderPlayer();
     playerStatus();
   }
 }
+
+/* The picture arrives in its own message; if this device missed it — joined
+   late, reconnected, dropped a packet — ask for it once per round. */
+function askForImage(snap) {
+  if (!snap.q || !snap.q.hasImage) return;
+  const qi = snap.qi;
+  if (P.images[qi] || P.imgAsked[qi]) return;
+  P.imgAsked[qi] = true;
+  if (P.net) P.net.send({ t: 'needimg', code: P.code, pid: P.pid, qi });
+  /* one retry, in case the reply was the thing that went missing */
+  setTimeout(() => {
+    if (!P.images[qi] && P.net && P.snap && P.snap.qi === qi) {
+      P.net.send({ t: 'needimg', code: P.code, pid: P.pid, qi });
+    }
+  }, 2500);
+}
+const roundImage = qi => P.images[qi] || null;
 
 function me() {
   if (!P.snap) return null;
@@ -6141,7 +6412,8 @@ function renderPlayer() {
   const key = snap.phase + ':' + round +
     ':' + (P.picked[round] != null ? 'p' : 'o') +
     ':' + (P.lockedMs[round] != null ? 't' : '') +
-    ':' + (m && m.hasAnswered ? 'h' : '');
+    ':' + (m && m.hasAnswered ? 'h' : '') +
+    ':' + (roundImage(round) ? 'i' : '');
 
   if (snap.phase === 'lobby') {
     body.innerHTML =
@@ -6178,6 +6450,7 @@ function renderPlayer() {
             V.ringHTML('p-ring') +
             '<span class="pill accent">Q' + (snap.qi + 1) + ' / ' + snap.total + ' · ' + nf(snap.q.points) + ' pts</span>' +
           '</div>' +
+          (roundImage(round) ? '<img class="qmedia" src="' + esc(roundImage(round)) + '" alt="">' : '') +
           '<div class="qtext" style="font-size:clamp(19px,4.4vw,30px);padding:16px 18px">' + esc(snap.q.text) + '</div>' +
           V.answersHTML(snap, { clickable: true, deal: true });
         P.ring = $('#p-ring');
@@ -6443,16 +6716,24 @@ function peekRoom(code) {
 }
 
 /* =========================================================== DASHBOARD ===*/
-const D = { code: '', net: null, snap: null, last: 0, tick: 0, ring: null, key: '' };
+const D = { code: '', net: null, snap: null, last: 0, tick: 0, ring: null, key: '',
+            images: Object.create(null), imgAsked: Object.create(null) };
 
 function startDash(code) {
   D.code = code;
   if (D.net) { try { D.net.close(); } catch (e) {} }
   $('#dash-code').textContent = code;
   D.net = connect(code, m => {
+    if (m.t === 'img' && typeof m.src === 'string' && /^data:image\//.test(m.src)) {
+      D.images[m.qi] = m.src; D.key = ''; renderDash(); return;
+    }
     if (m.t !== 'st' || m.s.code !== code) return;
     D.snap = m.s; D.last = now();
     if (m.s.phase === 'question') D.endsAt = now() + (m.s.endsIn || 0);
+    if (m.s.q && m.s.q.hasImage && !D.images[m.s.qi] && !D.imgAsked[m.s.qi]) {
+      D.imgAsked[m.s.qi] = true;
+      D.net.send({ t: 'needimg', code: code, pid: 'dash', qi: m.s.qi });
+    }
     renderDash();
   }, (state, text) => { D.peer = text || state; dashStatus(); });
   D.net.send({ t: 'watch', code: code, pid: 'dash-' + uid(6) });
@@ -6489,7 +6770,7 @@ function renderDash() {
       '<p class="dim" style="margin-top:8px">Open this dashboard while the host has the room running.</p></div>';
     return;
   }
-  const key = snap.phase + ':' + snap.qi;
+  const key = snap.phase + ':' + snap.qi + ':' + (D.images[snap.qi] ? 'i' : '');
   const rebuilt = D.key !== key;
   D.key = key;
 
@@ -6516,6 +6797,7 @@ function renderDash() {
             '<div><div class="answered-count"><span id="dash-answered">0</span> <span class="dim" style="font-size:.55em">answered</span></div></div></div>' +
           '<span class="pill accent">Question ' + (snap.qi + 1) + ' / ' + snap.total + '</span>' +
         '</div>' +
+        (D.images[snap.qi] ? '<img class="qmedia" src="' + esc(D.images[snap.qi]) + '" alt="" style="margin-bottom:12px">' : '') +
         '<div class="qtext" style="font-size:clamp(20px,3.4vw,38px)">' + esc(snap.q.text) + '</div>' +
         '<div style="height:14px"></div>' +
         V.answersHTML(snap, { deal: true }) +
