@@ -55,55 +55,97 @@ correct answer, a streak bonus, and an optional penalty for wrong answers.
 
 Two modes, chosen under **Rules & access**:
 
-- **Any device** — phones and laptops connect peer-to-peer over WebRTC. This is
-  the default and needs the page opened from an `https://` address (the Pages
-  link above).
+- **Any device** (default) — phones and laptops join from anywhere. Two routes,
+  picked automatically: if the page is served by the bundled relay server it
+  uses that; otherwise it connects browsers peer-to-peer over WebRTC.
 - **This device only** — other tabs and windows on the same computer. Always
   works, including offline and straight from a downloaded file.
 
-### Two things that will not work
+### If your network blocks peer-to-peer
 
-**Sharing the file instead of the link.** Putting `index.html` in OneDrive,
-Google Drive, Teams or an email attachment gives every person their own separate
-copy on their own machine. Separate copies cannot see each other, and the join
-link would just be a path on the host's hard drive. Share the **web address**,
-not the file. The app detects this case and says so rather than offering a link
-that cannot work.
+Most workplaces and schools do. You will see this in the lobby:
 
-**Networks that block peer-to-peer.** Many corporate and school networks do.
-When that happens, players type a valid code and are told no room answered.
+> ⚠️ **Could not reach the service that links devices together**
 
-To tell which you are hitting, open a room and read the pill at the top-left of
-the lobby:
+and players typing a valid code will be told no room answered. **Run the
+bundled server instead.** It carries the game over ordinary web requests, which
+firewalls allow, and the page switches to it automatically — nothing to
+configure.
+
+Download `index.html` and one of the server files into the same folder, then:
+
+```bash
+node server.js          # if you have Node
+python3 server.py       # if you have Python 3
+```
+
+It prints the address to share:
+
+```
+  ⚡ Quiz Arena is running
+
+  On this computer:   http://localhost:8080
+
+  Share ONE of these with your players:
+      http://192.168.1.42:8080
+```
+
+Everyone opens that address — host included. Players need to be on the same
+network as the computer running it. Leave the window open for the whole quiz;
+nothing is written to disk and the rooms disappear when you stop it.
+
+Both servers behave identically and need no installed packages. Add a port
+number to change it: `node server.js 3000`.
+
+### Sharing the file instead of the link
+
+Putting `index.html` in OneDrive, Google Drive, Teams or an email attachment
+gives every person their own separate copy on their own machine. Separate
+copies cannot see each other, and the join link would just be a path on the
+host's hard drive. Share the **web address**, not the file. The app detects
+this case and says so rather than offering a link that cannot work.
+
+### Which connection am I on?
+
+Open a room and read the pill at the top-left of the lobby:
 
 | Pill | Meaning |
 |---|---|
-| 🌐 **Open to any device** | Working. Phones and laptops can join. |
-| ⚠️ **Could not reach the connection service** | Your network is blocking it. Try a phone hotspot to confirm. |
+| 🌐 **Open to any device** | Working — over the relay if you started a server, otherwise peer-to-peer. |
+| 💻 **This device only** | Set that way under *Rules & access*. Only other tabs here can join. |
+| ⚠️ **Could not reach the connection service** | Peer-to-peer is blocked. Start the server as above. |
 
 ---
 
 ## Hosting it yourself
 
-Any static host works. For GitHub Pages: **Settings → Pages → Deploy from a
-branch → `main` / `(root)`**. The repository must be public unless you are on a
-paid GitHub plan.
+`index.html` is a complete static site — any host will serve it. For GitHub
+Pages: **Settings → Pages → Deploy from a branch → `main` / `(root)`**. The
+repository must be public unless you are on a paid GitHub plan.
 
-To run it locally instead:
-
-```bash
-python3 -m http.server 8000
-# then open http://localhost:8000
-```
+Static hosting gives you peer-to-peer play. If your network blocks that, use
+`server.js` / `server.py` instead, as described above — it serves the page *and*
+relays the game.
 
 ---
 
 ## Privacy
 
-Everything stays in the browser. Quizzes and results are held in your own
-`localStorage`; nothing is uploaded, and there is no backend. When players are
-on different devices, the game data travels directly between browsers — only the
-initial handshake touches an outside service, and it carries no quiz content.
+Quizzes and results are held in your own browser's `localStorage`. There is no
+account, no database and no analytics.
+
+- **Peer-to-peer**: game data travels directly between browsers. Only the
+  initial handshake touches an outside service, and it carries no quiz content.
+- **Relay server**: everything stays on the machine you run it on, in memory
+  only. Nothing is written to disk, and rooms vanish when you stop it.
+
+## Files
+
+| | |
+|---|---|
+| `index.html` | The entire app. Open it, host it, or serve it — nothing else required. |
+| `server.js` | Optional relay for networks that block peer-to-peer. Node 14+. |
+| `server.py` | The same relay for Python 3.7+. Use whichever runtime you have. |
 
 ## Credits
 

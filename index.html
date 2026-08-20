@@ -3514,6 +3514,77 @@ function PeerClient(code, onMsg, onStatus) {
 }
 
 /* A Net multiplexes the buses and drops duplicate deliveries. */
+/* ==========================================================================
+   Relay transport
+
+   Peer-to-peer needs WebRTC and a signalling service, both of which corporate
+   and school networks routinely block. When this page is served by the bundled
+   relay server, the game travels over ordinary HTTP long-polling instead —
+   the same kind of request that fetched the page, so anything that can load
+   the page can play. Detected automatically; nothing to configure.
+   ======================================================================== */
+const RELAY_BASE = (function () {
+  const p = location.pathname;
+  return p.slice(0, p.lastIndexOf('/') + 1) + '__qa/';
+})();
+
+let relayProbe = null;
+function findRelay() {
+  if (relayProbe) return relayProbe;
+  if (!/^https?:$/.test(location.protocol) || typeof fetch !== 'function') {
+    relayProbe = Promise.resolve(false);
+    return relayProbe;
+  }
+  relayProbe = fetch(RELAY_BASE + 'ping', { cache: 'no-store' })
+    .then(r => (r.ok ? r.json() : null))
+    .then(j => !!(j && j.quizarena))
+    .catch(() => false);
+  return relayProbe;
+}
+
+function RelayBus(code, onMsg, onStatus) {
+  let alive = true, since = -1, misses = 0, ctrl = null;
+  const status = onStatus || function () {};
+
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  async function loop() {
+    while (alive) {
+      try {
+        ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+        const res = await fetch(RELAY_BASE + 'poll?room=' + encodeURIComponent(code) + '&since=' + since,
+          { cache: 'no-store', signal: ctrl && ctrl.signal });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const body = await res.json();
+        if (!alive) return;
+        since = body.seq;
+        misses = 0;
+        status('online', 'Open to any device');
+        (body.msgs || []).forEach(m => onMsg(m));
+      } catch (e) {
+        if (!alive) return;
+        misses++;
+        status(misses > 2 ? 'error' : 'retry', misses > 2 ? 'Lost the server' : 'Reconnecting…');
+        await wait(Math.min(8000, 400 * Math.pow(2, misses)));
+      }
+    }
+  }
+  loop();
+
+  return {
+    kind: 'relay',
+    send(m) {
+      if (!alive) return;
+      fetch(RELAY_BASE + 'send?room=' + encodeURIComponent(code), {
+        method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(m)
+      }).catch(() => {});
+    },
+    close() { alive = false; if (ctrl) { try { ctrl.abort(); } catch (e) {} } }
+  };
+}
+
 function Net(opts) {
   const seen = Object.create(null);
   let seenN = 0;
@@ -3551,7 +3622,7 @@ window.QA = {
   $, $$, esc, clamp, uid, roomCode, secs, mmss, nf, now,
   SHAPES, ACOLORS, AHEX, TEAM_PALETTE,
   toast, modal, LS, SS, Sound, Confetti,
-  LocalBus, PeerHost, PeerClient, Net, PEER_PREFIX
+  LocalBus, PeerHost, PeerClient, RelayBus, Net, PEER_PREFIX, findRelay
 };
 })();
 
@@ -4331,7 +4402,7 @@ window.QA.Build = { init: initBuilder, getConfig, renderAll, stepTo, problems, d
 'use strict';
 const Q = window.QA;
 const { $, $$, esc, clamp, roomCode, secs, nf, now, toast, Sound, Confetti,
-        LocalBus, PeerHost, Net, SHAPES } = Q;
+        LocalBus, PeerHost, RelayBus, Net, findRelay, SHAPES } = Q;
 const V = Q.Views;
 
 const HEARTBEAT_GRACE = 9000;   /* silence before a player counts as offline */
@@ -4471,11 +4542,14 @@ function bcast(immediate) {
 
 let warnedOffline = false;
 let netFailed = false;
+let relayInUse = false;
 function setNet(state, text) {
   netFailed = state === 'error' || state === 'retry';
   if (state === 'error' && !warnedOffline && G && G.cfg.netMode === 'online') {
     warnedOffline = true;
-    toast('Could not open the room to the internet. Players on this computer can still join in other tabs.', 'bad', 6000);
+    toast(relayInUse
+      ? 'Lost contact with the quiz server. Check it is still running.'
+      : 'Could not open the room to the internet. Players on this computer can still join in other tabs.', 'bad', 6000);
   }
   if (state === 'online') warnedOffline = false;
   if (G && G.phase === 'lobby') renderLobbyWarn();
@@ -4495,11 +4569,24 @@ function setNet(state, text) {
 
 function openTransport() {
   const net = Net({ onMessage: onPlayerMessage });
+  const code = G.code;
   G.net = net;
-  net.add(LocalBus(G.code, net.accept));
-  if (G.cfg.netMode === 'online') {
-    setNet('connecting', 'Publishing room…');
-    const ph = PeerHost(G.code, net.accept, (state, text) => {
+  net.add(LocalBus(code, net.accept));
+  if (G.cfg.netMode !== 'online') { setNet('local', ''); return; }
+
+  setNet('connecting', 'Publishing room…');
+  /* A relay on this origin beats peer-to-peer everywhere it exists: it needs
+     nothing but plain HTTP, so firewalls that kill WebRTC leave it alone. */
+  findRelay().then(hasRelay => {
+    if (!G || G.code !== code || G.net !== net) return;      /* room moved on */
+    if (hasRelay) {
+      relayInUse = true;
+      net.add(RelayBus(code, net.accept, (state, text) =>
+        setNet(state === 'online' ? 'online' : state, state === 'online' ? 'Open to any device' : text)));
+      return;
+    }
+    relayInUse = false;
+    net.add(PeerHost(code, net.accept, (state, text) => {
       if (state === 'taken') {
         /* Extremely rare, but a duplicate code would silently steal players. */
         setNet('taken', text);
@@ -4508,11 +4595,8 @@ function openTransport() {
         return;
       }
       setNet(state === 'online' ? 'online' : state, text);
-    });
-    net.add(ph);
-  } else {
-    setNet('local', '');
-  }
+    }));
+  });
 }
 function restartWithNewCode() {
   const cfg = G.cfg, players = G.players;
@@ -5061,6 +5145,7 @@ function startRoom() {
   G = newGame(cfg);
   warnedOffline = false;
   netFailed = false;
+  relayInUse = false;
   Sound.enabled = cfg.sound;
   Sound.unlock();
   openTransport();
@@ -5175,28 +5260,33 @@ window.QA.Host = { init: initHost, startRoom, showScreen, resume, isLive: () => 
 'use strict';
 const Q = window.QA;
 const { $, $$, esc, clamp, uid, secs, nf, now, modal, SS, Sound, Confetti,
-        LocalBus, PeerClient, Net } = Q;
+        LocalBus, PeerClient, RelayBus, Net, findRelay } = Q;
 const V = Q.Views;
 
 /* ======================================================= shared client bus */
 function connect(code, onMsg, onStatus, delay) {
-  let heard = false;
+  let heard = false, closed = false;
   const net = Net({ onMessage: m => { heard = true; onMsg(m); } });
   net.add(LocalBus(code, net.accept));
 
   /* A room running in another tab on this machine answers in milliseconds.
      Only when nothing local replies do we open a peer-to-peer connection,
      which keeps offline and same-device games entirely off the network. */
-  let peered = false;
-  const addPeer = () => {
-    if (peered) return;
-    peered = true;
-    net.add(PeerClient(code, net.accept, onStatus || function () {}));
+  let reached = false;
+  const reachOut = () => {
+    if (reached) return;
+    reached = true;
+    const status = onStatus || function () {};
+    findRelay().then(hasRelay => {
+      if (closed) return;
+      net.add(hasRelay ? RelayBus(code, net.accept, status)
+                       : PeerClient(code, net.accept, status));
+    });
   };
-  const timer = setTimeout(() => { if (!heard) addPeer(); }, delay == null ? 600 : delay);
+  const timer = setTimeout(() => { if (!heard) reachOut(); }, delay == null ? 600 : delay);
 
   const baseClose = net.close;
-  net.close = () => { clearTimeout(timer); baseClose(); };
+  net.close = () => { closed = true; clearTimeout(timer); baseClose(); };
   return net;
 }
 
@@ -5252,7 +5342,8 @@ function startPlayer(code, name, team) {
         '2. You and the host opened the <em>same web address</em>. Opening your own copy of the file &mdash; ' +
         'from a shared folder, email or a download &mdash; puts you on an island that cannot reach anyone else.<br>' +
         '3. Your network allows the connection. Office and school networks often block the peer-to-peer traffic ' +
-        'this uses; a phone hotspot is a quick way to tell.' +
+        'this uses \u2014 a phone hotspot is a quick way to tell. If it is blocked, ask the host to run the quiz ' +
+        'from the bundled server, which works over ordinary web requests.' +
         '</p></div></div>');
       return;
     }
