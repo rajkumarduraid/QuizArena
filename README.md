@@ -19,8 +19,12 @@ dependencies to install.
    Questions are saved in your browser, so you can build a quiz days ahead.
 3. Set up teams and scoring under **Teams** and **Rules & access**.
 4. **Open the room.** You get a six-character code, a join link, and a QR code.
-5. **Players** open the same link, tap **Join a game**, and enter the code and a
-   name. Nothing starts until the host presses **Start**.
+5. **Players** open the same link, tap **Join a game**, then enter the code, a
+   name, and pick one of 30 avatars. Nothing starts until the host presses
+   **Start**.
+6. Once in, every player gets a **briefing** — how many questions, how long
+   each one runs, what they are worth, and exactly how the points are decided —
+   so nobody starts guessing at the rules.
 
 Host controls during play: reveal, skip, next, end early — plus <kbd>Space</kbd>
 to advance and <kbd>R</kbd> to reveal, handy when the laptop is on a lectern.
@@ -45,6 +49,7 @@ host can pop it into a second window from the lobby.
 | **Leaderboard** | Live scores with per-round deltas and streaks |
 | **Team race** | Totals *and* per-player averages, so an uneven split can't hide |
 | **Final results** | Podium, full table with average and fastest times, CSV/JSON export |
+| **Avatars** | 30 drawn characters, one per player, shown on every board so people are recognisable at a glance |
 
 Scoring is configurable: how much speed is worth, a bonus for the fastest
 correct answer, a streak bonus, and an optional penalty for wrong answers.
