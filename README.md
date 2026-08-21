@@ -51,6 +51,7 @@ host can pop it into a second window from the lobby.
 | **Final results** | Podium, full table with average and fastest times, CSV/JSON export |
 | **Avatars** | 30 drawn heroes, one per player, shown on every board so people are recognisable at a glance |
 | **Picture rounds** | Attach an image to any question — it appears above the answers on every screen |
+| **Locked questions** | Players can't select, copy or drag the question text off their screen |
 
 Scoring is configurable: how much speed is worth, a bonus for the fastest
 correct answer, a streak bonus, and an optional penalty for wrong answers.
@@ -146,6 +147,28 @@ A few things worth knowing:
   a picture or export the quiz if that happens.
 - The image is sent once when its question opens, not with every update.
   Anyone who joins mid-question, or reconnects, asks for it and gets it.
+
+---
+
+## Stopping players copying the questions
+
+On by default, under **Rules & access → Block copying on player devices**. With
+it on, the question and its options cannot be selected, copied, cut, right-
+clicked or dragged out on a player's phone or laptop, and the same applies to
+the projector dashboard, so nobody can use that URL as a way round it. Players
+are told in the briefing, so it does not read as a bug.
+
+The host screen and the builder are untouched — you wrote the questions, so you
+keep full use of them.
+
+**Be clear about what this is.** It is a deterrent against the easy route:
+select, copy, paste into a chat. It is not security. A screenshot, a photo of
+the screen, or the browser's developer tools will always get the text, and
+nothing running in a browser can prevent that. If a question genuinely must not
+leave the room, do not put it on the players' devices.
+
+Turn it off if you would rather people could copy — a code snippet they need to
+paste somewhere, for instance.
 
 ---
 

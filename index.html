@@ -590,6 +590,15 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   border-bottom:1px solid var(--line); background:rgba(255,255,255,.8);
   backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); flex-wrap:wrap}
 .play-body{flex:1; display:flex; flex-direction:column; gap:13px; padding:var(--sp); justify-content:center}
+
+/* Copy protection. Applied to the player screen and the projector dashboard
+   when the host leaves it on: text cannot be selected, dragged or long-pressed,
+   and the picture cannot be dragged out of the page. Buttons still work. */
+.no-copy, .no-copy *{user-select:none; -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none;
+  -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent}
+.no-copy ::selection{background:transparent}
+.no-copy ::-moz-selection{background:transparent}
+.no-copy img{-webkit-user-drag:none; pointer-events:none}
 #play-name{display:inline-flex; align-items:center; gap:8px; min-width:0}
 #play-name > span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .me-score{margin-left:auto; font-family:var(--display); font-weight:var(--dw); font-size:17px; font-variant-numeric:tabular-nums}
@@ -913,6 +922,10 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
               <div class="spread">
                 <div><b style="font-size:14px">Shuffle question order</b><p class="dim" style="font-size:13px;margin-top:3px">Randomised once, when the room opens.</p></div>
                 <label class="switch"><input type="checkbox" id="shuffle-q"><span class="track"></span></label>
+              </div>
+              <div class="spread">
+                <div><b style="font-size:14px">Block copying on player devices</b><p class="dim" style="font-size:13px;margin-top:3px">Questions and answers can&rsquo;t be selected, copied or dragged. A deterrent, not a lock &mdash; a screenshot still works.</p></div>
+                <label class="switch"><input type="checkbox" id="no-copy" checked><span class="track"></span></label>
               </div>
             </div>
           </div>
@@ -4514,6 +4527,7 @@ function briefHTML(snap, opts) {
     snap.teamsEnabled
       ? rule('users', 'Teams are ranked by <b>' + (snap.teamMetric === 'avg' ? 'average points per player' : 'total points') + '</b>.')
       : '',
+    b.noCopy ? rule('lock', 'Question text is <b>locked</b> on your device &mdash; it cannot be selected or copied.') : '',
     rule('eye', 'Miss a question and you simply score nothing for it &mdash; no penalty for running out of time.')
   ].filter(Boolean).join('');
 
@@ -4615,7 +4629,7 @@ function defaultConfig() {
     teamsEnabled: true, teams: defaultTeams(), assign: 'choose', teamMetric: 'total',
     speedW: 0.5, fastBonus: 100, streakBonus: 50, wrongPenalty: 0,
     defTime: 20, defPoints: 1000,
-    pinOn: false, pin: '', lateJoin: true, showPlayersLb: true, shuffle: false,
+    pinOn: false, pin: '', lateJoin: true, showPlayersLb: true, shuffle: false, noCopy: true,
     netMode: 'online', sound: true
   };
 }
@@ -4669,6 +4683,7 @@ function normaliseConfig(raw) {
     lateJoin: raw.lateJoin !== false,
     showPlayersLb: raw.showPlayersLb !== false,
     shuffle: !!raw.shuffle,
+    noCopy: raw.noCopy !== false,
     netMode: raw.netMode === 'local' ? 'local' : 'online',
     sound: raw.sound !== false
   });
@@ -5028,6 +5043,7 @@ function renderRules() {
   const c = (id, v) => { const e = $(id); if (e) e.checked = v; };
   c('#pin-on', cfg.pinOn); c('#late-join', cfg.lateJoin);
   c('#show-players-lb', cfg.showPlayersLb); c('#shuffle-q', cfg.shuffle);
+  c('#no-copy', cfg.noCopy);
   c('#sound-on', cfg.sound);
   $('#pin-field').classList.toggle('hide', !cfg.pinOn);
   const nm = document.querySelector('input[name=netmode][value="' + cfg.netMode + '"]'); if (nm) nm.checked = true;
@@ -5050,6 +5066,7 @@ function wireRules() {
   $('#late-join').onchange = e => { cfg.lateJoin = e.target.checked; save(); };
   $('#show-players-lb').onchange = e => { cfg.showPlayersLb = e.target.checked; save(); };
   $('#shuffle-q').onchange = e => { cfg.shuffle = e.target.checked; save(); };
+  $('#no-copy').onchange = e => { cfg.noCopy = e.target.checked; save(); };
   $('#sound-on').onchange = e => { cfg.sound = e.target.checked; Q.Sound.enabled = cfg.sound; save(); };
   $$('input[name=netmode]').forEach(r => r.onchange = () => { cfg.netMode = r.value; save(); });
 }
@@ -5347,7 +5364,8 @@ function briefing() {
     streakBonus: G.cfg.streakBonus,
     wrongPenalty: G.cfg.wrongPenalty,
     lateJoin: G.cfg.lateJoin,
-    shuffle: G.cfg.shuffle
+    shuffle: G.cfg.shuffle,
+    noCopy: G.cfg.noCopy
   };
 }
 
@@ -5376,6 +5394,7 @@ function snapshot() {
     lock: G.lock,
     lateJoin: G.cfg.lateJoin,
     showPlayersLb: G.cfg.showPlayersLb,
+    noCopy: G.cfg.noCopy,
     assign: G.cfg.assign,
     brief: briefing(),
     events: G.events.slice(-12).map(e => Object.assign({}, e, {
@@ -6395,6 +6414,7 @@ function renderPlayer() {
   const snap = P.snap;
   const body = $('#play-body');
   if (!body) return;
+  body.classList.toggle('no-copy', !snap || snap.noCopy !== false);
   const nameEl = $('#play-name');
   nameEl.innerHTML = avatarSVG(P.avatar || 0, 'av-sm') + '<span></span>';
   nameEl.lastChild.textContent = P.name;
@@ -6770,6 +6790,7 @@ function renderDash() {
       '<p class="dim" style="margin-top:8px">Open this dashboard while the host has the room running.</p></div>';
     return;
   }
+  main.classList.toggle('no-copy', snap.noCopy !== false);
   const key = snap.phase + ':' + snap.qi + ':' + (D.images[snap.qi] ? 'i' : '');
   const rebuilt = D.key !== key;
   D.key = key;
@@ -6993,8 +7014,30 @@ function paintIcons(root) {
   });
 }
 
+/* Copy protection. `.no-copy` does the work; these close the routes styling
+   leaves open — a keyboard copy of a selection made outside the locked box but
+   running through it, right-click, and dragging text or the picture out.
+   It is a deterrent: a screenshot or the developer tools always win. */
+function selectionTouchesLocked() {
+  const sel = typeof getSelection === 'function' ? getSelection() : null;
+  if (!sel || sel.isCollapsed || !sel.rangeCount) return false;
+  const r = sel.getRangeAt(0);
+  return Array.prototype.some.call(document.querySelectorAll('.screen.on .no-copy'),
+    el => { try { return r.intersectsNode(el); } catch (e) { return false; } });
+}
+function guardCopy() {
+  const locked = e => !!(e.target && e.target.closest && e.target.closest('.no-copy'));
+  ['copy', 'cut'].forEach(t => document.addEventListener(t, e => {
+    if (locked(e) || selectionTouchesLocked()) e.preventDefault();
+  }, true));
+  ['contextmenu', 'dragstart', 'selectstart'].forEach(t => document.addEventListener(t, e => {
+    if (locked(e)) e.preventDefault();
+  }, true));
+}
+
 function boot() {
   paintIcons();
+  guardCopy();
   Q.Build.init();
   Q.Host.init();
   initJoin();
