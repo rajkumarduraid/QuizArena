@@ -52,6 +52,7 @@ host can pop it into a second window from the lobby.
 | **Avatars** | 30 drawn heroes, one per player, shown on every board so people are recognisable at a glance |
 | **Picture rounds** | Attach an image to any question — it appears above the answers on every screen |
 | **Locked questions** | Players can't select, copy or drag the question text off their screen |
+| **Puzzle breaks** | Set Zip, Wend, Patches or Mini Sudoku for the room and rank everyone by solve time |
 
 Scoring is configurable: how much speed is worth, a bonus for the fastest
 correct answer, a streak bonus, and an optional penalty for wrong answers.
@@ -147,6 +148,60 @@ A few things worth knowing:
   a picture or export the quiz if that happens.
 - The image is sent once when its question opens, not with every update.
   Anyone who joins mid-question, or reconnects, asks for it and gets it.
+
+---
+
+## Puzzles
+
+Four puzzles ship with the app, at **Play a puzzle** on the home screen. Play
+them on your own against the clock, or set one for a whole room mid-session.
+
+| | |
+|---|---|
+| **Zip** | Draw one line from ① to the last number, hitting them in order, filling every square and never crossing a wall. |
+| **Wend** | Trace the hidden words through touching letters. The tiles under the grid show how long each one is, and every open square belongs to exactly one word. |
+| **Patches** | Grow each numbered patch until it covers exactly that many squares, with no overlaps and nothing left bare. |
+| **Mini Sudoku** | 6x6, digits 1 to 6, boxes three wide and two tall. |
+
+Each has easy, medium and hard, and every difficulty is a different size of
+board. Your best time per puzzle per difficulty is kept in your browser.
+
+### Boards are built, not stored
+
+Nothing ships a library of hand-made puzzles. Every board is generated from its
+number, which means two things worth knowing:
+
+- **There is always another one.** Press *Next puzzle* as long as you like.
+- **Puzzle 42 is the same board everywhere.** That is what makes a race cheap:
+  the host sends a game, a difficulty and a number — three short values — and
+  every phone builds the identical grid for itself. No grid ever goes over the
+  wire.
+
+**Zip** and **Mini Sudoku** are solved before you see them and checked to have
+**exactly one answer**. **Wend** and **Patches** accept any arrangement that
+obeys the rules, so a second valid way through still counts — for Patches that
+is deliberate: one number per patch is the thinnest clue a region puzzle can
+carry, and measured over thousands of boards it pins a 6x6 down almost never.
+It is a packing puzzle, and it is scored as one.
+
+### Racing the room
+
+With a room open, press **Puzzle break** — in the lobby, or between questions
+once the quiz is running. Pick the puzzle and the difficulty, and every player's
+device switches to the board with a live standings strip down the side.
+
+The clock that counts is the **host's**: from the moment you set the puzzle to
+the moment a solve reaches you. A player's own timer is for them, and no time
+can be typed in from a phone. Press **End puzzle & score it** and the points go
+on the scoreboard, scaled by how close each person was to the quickest solve,
+using the same speed weighting the quiz already runs on — plus the fastest bonus
+for whoever got there first.
+
+Puzzle points count towards the score. They deliberately do **not** touch
+anyone's accuracy or streak: a puzzle is not a question.
+
+The projector dashboard shows the same race, so a room with one screen can
+follow along.
 
 ---
 
@@ -250,3 +305,8 @@ Bundled inline so the page has no external dependencies:
 - [PeerJS](https://peerjs.com) 1.5.4 — MIT
 - [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 1.4.4 by
   Kazuhiko Arase — MIT
+
+The Wend word list is filtered from
+[google-10000-english](https://github.com/first20hours/google-10000-english)
+(MIT) — plain 3-to-8-letter words, screened for anything that would land badly
+in a workplace game.
