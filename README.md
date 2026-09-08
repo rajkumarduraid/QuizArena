@@ -184,18 +184,36 @@ is deliberate: one number per patch is the thinnest clue a region puzzle can
 carry, and measured over thousands of boards it pins a 6x6 down almost never.
 It is a packing puzzle, and it is scored as one.
 
-### Racing the room
+### Building one into the quiz
 
-With a room open, press **Puzzle break** — in the lobby, or between questions
-once the quiz is running. Pick the puzzle and the difficulty, and every player's
-device switches to the board with a live standings strip down the side.
+In the builder, **Add a puzzle** drops a puzzle round into the list alongside
+your questions. Drag it wherever you want it, pick the game and difficulty, set
+how long the room gets and what it is worth. It travels with the quiz — saved,
+exported and imported like any other round.
 
-The clock that counts is the **host's**: from the moment you set the puzzle to
-the moment a solve reaches you. A player's own timer is for them, and no time
-can be typed in from a phone. Press **End puzzle & score it** and the points go
-on the scoreboard, scaled by how close each person was to the quickest solve,
-using the same speed weighting the quiz already runs on — plus the fastest bonus
-for whoever got there first.
+When the game reaches it, every player's screen switches to the board and a
+countdown starts. The round ends when the clock runs out or everybody has
+solved it, whichever comes first; then the room sees the result and the quiz
+carries on to the next question.
+
+### Or dropping one in on the spot
+
+Press **Puzzle break** — in the lobby, or between questions once the quiz is
+running — to set a puzzle that was never in the plan. Pick the game and the
+difficulty, and every player's device switches to the board with a live
+standings strip. An unplanned break has no clock: you end it when you are ready,
+and the room goes back to exactly where it was.
+
+### How it is scored
+
+The clock that counts is the **host's**: from the moment the round opens to the
+moment a solve reaches you. A player's own timer is for them, and no time can be
+typed in from a phone.
+
+Points scale with how close each person was to the quickest solve, using the
+same speed weighting the quiz already runs on, plus the fastest bonus for
+whoever got there first. Anyone who does not finish scores nothing for the
+round.
 
 Puzzle points count towards the score. They deliberately do **not** touch
 anyone's accuracy or streak: a puzzle is not a question.
