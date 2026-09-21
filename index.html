@@ -780,7 +780,7 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
    from how many there are rather than from a minimum width that leaves the
    bottom half of the screen empty. */
 .pick-grid.big{grid-template-columns:repeat(var(--cols,4),minmax(0,1fr)); gap:clamp(10px,1.4vw,20px);
-  width:min(100%,min(1180px,calc((100dvh - 250px) * var(--cols,4) / var(--rows,3)))); margin-inline:auto}
+  width:min(100%,min(1180px,calc((100dvh - 330px) * var(--cols,4) / var(--rows,3)))); margin-inline:auto}
 .pick-tile{aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:5px; padding:6px; border-radius:var(--r-l); border:1px solid var(--brand-line); color:var(--ink);
   background:linear-gradient(168deg,#fff,var(--brand-soft)); box-shadow:var(--sh-1); font:inherit;
@@ -859,19 +859,78 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
                     to{transform:scale(1) rotate(0); opacity:1}}
 .show-actions{display:flex; gap:11px; flex-wrap:wrap; justify-content:center}
 
-/* ---- the audience's own window: the same thing, with the chrome gone and
-   everything one size up, because it is across the room ---- */
+/* ---- the audience's own window ----
+   The host's window is a tool and stays on the app's daylight ground. This one
+   is a stage at the end of a room, so it goes dark: colour reads louder, a
+   projector's black is kinder on the eyes, and the two are never confused for
+   one another at a glance. The tokens are redefined here and the components
+   below go on reading from them, so nothing needed a second set of rules. */
+#s-screen{
+  --ink:#F6F7FF; --ink-2:#CFD2F0; --muted:#9A9DC4; --faint:#6E7199;
+  --surface:#221E44; --surface-2:#2A2553; --sunken:#1B1838;
+  --line:#3B3572; --line-2:#514A96;
+  --brand:#A78BFF; --brand-2:#C4B2FF; --brand-soft:#2E2760; --brand-line:#4C4394;
+  --ok:#4ADE9B; --gold:#FFC65C;
+  color:var(--ink);
+  background:
+    radial-gradient(1100px 760px at 50% 26%, #2B2459 0%, rgba(43,36,89,0) 68%),
+    radial-gradient(900px 700px at 88% 92%, #1F2A5E 0%, rgba(31,42,94,0) 62%),
+    #101128;
+}
 .screen-stage{padding:clamp(18px,3vw,50px)}
 .screen-stage .show-head h1{font-size:clamp(30px,5.4vw,62px)}
 .screen-stage .show-head p{font-size:clamp(15px,1.8vw,22px)}
-.screen-stage .show-text{font-size:clamp(28px,5.2vw,66px)}
+.screen-stage .show-text{font-size:clamp(28px,5.2vw,66px); text-shadow:0 2px 28px rgba(0,0,0,.35)}
 .screen-stage .show-ans{font-size:clamp(18px,2.4vw,34px);
-  padding:clamp(14px,2vw,28px) clamp(16px,2.2vw,30px)}
-.screen-stage .show-img{max-height:min(46vh,540px)}
-.screen-stage .pick-grid.big{width:min(100%,min(1400px,calc((100dvh - 190px) * var(--cols,4) / var(--rows,3))))}
+  padding:clamp(14px,2vw,28px) clamp(16px,2.2vw,30px); box-shadow:0 10px 30px rgba(0,0,0,.34)}
+.screen-stage .show-img{max-height:min(46vh,540px); border-color:var(--line-2);
+  box-shadow:0 20px 60px rgba(0,0,0,.5)}
+/* the reserve covers the heading, the stage padding and the grid's own gaps —
+   a board that runs off the bottom of a projector is worse than a small one */
+.screen-stage .pick-grid.big{width:min(100%,min(1400px,calc((100dvh - 300px) * var(--cols,4) / var(--rows,3))))}
 .screen-stage .pick-grid.big .pick-tile .n{font-size:clamp(44px,8vw,104px)}
 .screen-stage .wheel-hold{width:min(66vh,min(680px,88vw))}
 .screen-stage .wheel-out{font-size:clamp(26px,4.4vw,56px)}
+.screen-stage .qno{letter-spacing:.24em}
+
+/* the tiles are lit panels on the stage rather than paper cards */
+#s-screen .pick-tile{
+  background:linear-gradient(168deg,rgba(255,255,255,.13),rgba(255,255,255,.04));
+  border-color:rgba(167,139,255,.42);
+  box-shadow:0 14px 34px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.14)}
+#s-screen .pick-tile .n{color:#EDE9FF; text-shadow:0 0 26px rgba(167,139,255,.6)}
+#s-screen .pick-tile.done{background:rgba(255,255,255,.035); border-color:rgba(255,255,255,.09);
+  box-shadow:none}
+#s-screen .pick-tile.done .n{color:rgba(255,255,255,.34); text-shadow:none}
+#s-screen .pick-tile.done .sub{color:rgba(255,255,255,.4)}
+#s-screen .wheel-hold svg{filter:drop-shadow(0 18px 44px rgba(0,0,0,.55))}
+#s-screen .wheel-pin{border-top-color:#FFC65C;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+#s-screen .wheel-hub{background:#1B1838; border-color:rgba(255,255,255,.35)}
+#s-screen .wheel-out.on{color:#FFD98A; text-shadow:0 0 34px rgba(255,198,92,.45)}
+#s-screen .reveal-hold{border-color:var(--line-2); box-shadow:0 22px 60px rgba(0,0,0,.5)}
+
+/* ---- entrances ----
+   Everything the room is about to read arrives, rather than being there
+   already: a board deals itself out, a question rises, the options follow it
+   in. One beat each, nothing that outstays a presenter's pause. */
+.pick-grid .pick-tile{animation:tile-deal .46s var(--spring) both;
+  animation-delay:calc(var(--i,0) * 38ms)}
+@keyframes tile-deal{from{opacity:0; transform:translateY(16px) scale(.86)}
+                     to{opacity:1; transform:none}}
+.pick-tile.just-done .n{animation:strike .5s var(--ease) both}
+@keyframes strike{from{transform:scale(1.35); opacity:.2} to{transform:scale(1); opacity:1}}
+
+/* `fresh` is only on a question that has not been answered yet, so giving the
+   answer does not make the question itself fly in a second time */
+.show-q.fresh .qno{animation:rise .34s var(--ease) both}
+.show-q.fresh .show-text{animation:rise .46s var(--ease) both .06s}
+.show-q.fresh .show-img{animation:rise .5s var(--spring) both .04s}
+/* only on the way in — once revealed, the staging above owns these */
+.show-answers:not(.revealed) .show-ans{animation:deal-in .44s var(--spring) both;
+  animation-delay:calc(180ms + var(--d,0ms) * .55)}
+@keyframes deal-in{from{opacity:0; transform:translateY(20px) scale(.95)}
+                   to{opacity:1; transform:none}}
 
 /* ---- the wheel ---- */
 .wheel-wrap{display:flex; flex-direction:column; align-items:center; gap:clamp(12px,2vw,22px)}
@@ -885,7 +944,14 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   background:#fff; border:3px solid var(--line-2); box-shadow:var(--sh-1)}
 .wheel-out{font-family:var(--display); font-weight:var(--dw); font-size:clamp(22px,3.6vw,44px);
   min-height:1.2em; text-align:center; text-wrap:balance}
-.wheel-out.on{animation:rise .45s var(--spring) both; color:var(--brand)}
+.wheel-out.on{animation:win-name .6s var(--spring) both; color:var(--brand)}
+@keyframes win-name{from{opacity:0; transform:scale(.7)}
+                    60%{opacity:1; transform:scale(1.08)}
+                    to{opacity:1; transform:scale(1)}}
+/* once it has landed, everything but the winner steps back */
+#wheel-svg path, #wheel-svg text{transition:opacity .5s var(--ease)}
+#wheel-svg.won path, #wheel-svg.won text{opacity:.24}
+#wheel-svg.won path.hit, #wheel-svg.won text.hit{opacity:1}
 
 /* ---- picture reveal ---- */
 .reveal-hold{position:relative; width:min(1000px,100%); margin-inline:auto; border-radius:var(--r-l);
@@ -898,6 +964,11 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   font-size:clamp(12px,1.6vw,20px); cursor:pointer; font-style:normal;
   transition:opacity .38s var(--ease), transform .38s var(--ease)}
 .reveal-tiles i.gone{opacity:0; transform:scale(.72); pointer-events:none}
+/* only the piece just taken off plays; the rest are already where they were */
+.reveal-tiles i.gone.lift{animation:piece-off .5s var(--ease) both}
+@keyframes piece-off{from{opacity:1; transform:none}
+                     55%{opacity:.7; transform:scale(1.06) rotate(-3deg)}
+                     to{opacity:0; transform:scale(.58) rotate(9deg)}}
 
 /* ---- race strip, shown when a host is running the puzzle live ---- */
 .pz-race{width:min(600px,100%); display:flex; flex-direction:column; gap:8px; padding:13px 15px;
@@ -1412,6 +1483,7 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
       <div class="grow"></div>
       <div class="pz-levels" id="show-tools"></div>
       <button class="btn ghost sm" id="show-edit" data-ico="sliders">Questions</button>
+      <button class="btn sm" id="show-sound">Sound on</button>
       <button class="btn primary sm" id="show-screen" data-ico="chart">Open the screen</button>
       <button class="btn ghost sm" id="show-full" data-ico="eye">Full screen</button>
       <button class="btn ghost sm" id="show-reset" data-ico="refresh">Start over</button>
@@ -3963,7 +4035,36 @@ const Sound = (function () {
     right() { [784, 1047].forEach((f, i) => setTimeout(() => blip(f, 0.18, 'triangle', 0.12), i * 90)); },
     wrong() { blip(180, 0.3, 'sawtooth', 0.09); },
     times() { blip(300, 0.45, 'sawtooth', 0.1); },
-    win()   { [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => blip(f, 0.28, 'triangle', 0.13), i * 130)); }
+    win()   { [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => blip(f, 0.28, 'triangle', 0.13), i * 130)); },
+
+    /* ---- the big screen ----
+       A room hears these over a projector, so they are shorter and softer than
+       a game-show sting: enough to punctuate what just happened on the wall,
+       never enough to talk over the person presenting. */
+    pick()   { [523, 784].forEach((f, i) => setTimeout(() => blip(f, 0.13, 'triangle', 0.09), i * 70)); },
+    tock()   { blip(1500, 0.03, 'square', 0.035); },
+    lift()   { blip(720, 0.08, 'triangle', 0.055); },
+    /* a low roll under the pause before an answer is given */
+    roll(ms) {
+      const n = Math.max(3, Math.round((ms || 600) / 55));
+      for (let i = 0; i < n; i++) {
+        setTimeout(() => blip(150 + i * 4, 0.05, 'triangle', 0.035 + i * 0.002), i * 55);
+      }
+    },
+    sting() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => blip(f, 0.24, 'triangle', 0.115), i * 78)); },
+    dud()   { blip(196, 0.16, 'sine', 0.045); },
+    swish() {
+      const c = ensure(); if (!c || !on) return;
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(220, c.currentTime);
+      o.frequency.exponentialRampToValueAtTime(1100, c.currentTime + 0.22);
+      g.gain.setValueAtTime(0.0001, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.07, c.currentTime + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.26);
+      o.connect(g); g.connect(c.destination);
+      o.start(); o.stop(c.currentTime + 0.3);
+    }
   };
 })();
 
@@ -8576,8 +8677,9 @@ const SH = {
   at: -1,
   shown: false,
   names: [],
-  rot: 0, spinning: false, winner: -1, spinAt: 0,
+  rot: 0, spinFrom: 0, spinning: false, winner: -1, spinAt: 0,
   pic: -1, gone: Object.create(null),
+  sound: true, just: 0, justPiece: -1,
   remote: null,
   lastKey: ''
 };
@@ -8585,6 +8687,15 @@ const SH = {
 const questions = () => (Q.Build.getConfig().questions || []).filter(q => q.kind !== 'pz');
 const pictures = () => questions().filter(q => q.image);
 const sigOf = () => questions().map(q => q.id).join('|');
+
+/* Only the control window makes a noise. A window opened by script has had no
+   gesture of its own, so its audio would stay suspended and silent — and both
+   windows are on the one machine driving the one set of speakers anyway. */
+function sfx(name, arg) {
+  if (!SH.sound || SH.role !== 'control') return;
+  const f = Q.Sound[name];
+  if (f) { try { f.call(Q.Sound, arg); } catch (e) {} }
+}
 
 /* ------------------------------------------------------------------- link */
 const Link = (function () {
@@ -8609,13 +8720,15 @@ const Link = (function () {
 
 /* ------------------------------------------------------------- persistence */
 function store() {
-  LS.set(KEY, { sig: SH.sig, order: SH.order, used: SH.used, names: SH.names, tool: SH.tool });
+  LS.set(KEY, { sig: SH.sig, order: SH.order, used: SH.used, names: SH.names,
+                tool: SH.tool, sound: SH.sound });
 }
 function load() {
   const qs = questions();
   const sig = sigOf();
   const saved = LS.get(KEY, null);
   SH.names = (saved && Array.isArray(saved.names)) ? saved.names : [];
+  SH.sound = !saved || saved.sound !== false;
   if (saved && TOOLS.some(t => t.id === saved.tool)) SH.tool = saved.tool;
   if (saved && saved.sig === sig && Array.isArray(saved.order) && saved.order.length === qs.length) {
     SH.sig = sig; SH.order = saved.order.slice();
@@ -8655,7 +8768,9 @@ function viewNow() {
     at: SH.at,
     tileNo: SH.at >= 0 ? SH.order.indexOf(SH.at) + 1 : 0,
     shown: SH.shown,
-    wheel: { items: wheelNames(), rot: SH.rot, winner: SH.winner, spinAt: SH.spinAt },
+    just: SH.just, justPiece: SH.justPiece,
+    wheel: { items: wheelNames(), rot: SH.rot, from: SH.spinFrom,
+             winner: SH.winner, spinAt: SH.spinAt },
     pic: SH.pic, gone: Object.assign({}, SH.gone), pics: pics.length
   };
 }
@@ -8675,9 +8790,19 @@ function open(role, tool) {
     return;
   }
   Q.Host.showScreen('s-show');
+  Q.Sound.enabled = SH.sound;
   $('#show-title').textContent = Q.Build.getConfig().title || 'Untitled quiz';
   paintTools();
+  paintSound();
   render();
+}
+
+function paintSound() {
+  const b = $('#show-sound');
+  if (!b) return;
+  b.classList.toggle('ghost', !SH.sound);
+  b.innerHTML = Q.ico(SH.sound ? 'bolt' : 'signal-off') + (SH.sound ? 'Sound on' : 'Sound off');
+  b.title = SH.sound ? 'Turn the sound off' : 'Turn the sound on';
 }
 
 function paintTools() {
@@ -8690,6 +8815,7 @@ function paintTools() {
       SH.tool = el.dataset.tool;
       SH.at = -1; SH.shown = false; SH.pic = -1; SH.winner = -1;
       SH.gone = Object.create(null);
+      sfx('swish');
       store(); paintTools(); render();
     };
   });
@@ -8745,8 +8871,10 @@ function paintNumbers(v, stage, live) {
       '<p>' + (left ? 'Someone call one out.' : 'Every number has been opened.') + '</p>' +
     '</div>' +
     '<div class="pick-grid big" style="--cols:' + cols + ';--rows:' + rows + '">' +
-      v.tiles.map(t =>
-        '<button class="pick-tile' + (t.done ? ' done' : '') + '" type="button"' +
+      v.tiles.map((t, i) =>
+        '<button class="pick-tile' + (t.done ? ' done' : '') +
+          (t.done && v.just === t.n ? ' just-done' : '') + '" type="button"' +
+          ' style="--i:' + i + '"' +
           (live && !t.done ? ' data-n="' + (t.n - 1) + '"' : ' disabled') +
           ' aria-label="Number ' + t.n + (t.done ? ', already opened' : '') + '">' +
           '<span class="n">' + t.n + '</span>' +
@@ -8761,8 +8889,9 @@ function paintNumbers(v, stage, live) {
   stage.querySelectorAll('[data-n]').forEach(el => {
     el.onclick = () => {
       SH.at = SH.order[Number(el.dataset.n)];
-      SH.shown = false;
+      SH.shown = false; SH.just = 0;
       SH.used[SH.at] = 1;
+      sfx('pick');
       store(); render();
     };
   });
@@ -8775,7 +8904,7 @@ function paintQuestion(v, stage, live) {
   if (!q) { emptyCard(stage, 'That question is no longer here', '', live); return; }
   const one = q.options.length <= 2 && q.options.join('').length > 40;
   stage.innerHTML =
-    '<div class="show-q">' +
+    '<div class="show-q' + (v.shown ? '' : ' fresh') + '">' +
       '<span class="qno">Number ' + v.tileNo + '</span>' +
       (q.image ? '<img class="show-img" src="' + esc(q.image) + '" alt="">' : '') +
       '<h2 class="show-text">' + esc(q.text) + '</h2>' +
@@ -8808,17 +8937,26 @@ function paintQuestion(v, stage, live) {
   if (nxt) nxt.onclick = backToBoard;
 }
 
+/* The roll runs under the cards being ruled out; the sting lands with the
+   answer, which the CSS holds back by the same beat. */
 function revealAnswer() {
   if (SH.at < 0 || SH.shown) return;
   SH.shown = true;
-  Q.Sound.right();
+  sfx('roll', 420);
+  setTimeout(() => sfx('sting'), 430);
   render();
 }
-function backToBoard() { SH.at = -1; SH.shown = false; render(); }
+function backToBoard() {
+  SH.just = SH.at >= 0 ? SH.order.indexOf(SH.at) + 1 : 0;
+  SH.at = -1; SH.shown = false;
+  sfx('swish');
+  render();
+}
 
 function startOver() {
   reshuffle(sigOf(), questions().length);
   SH.at = -1; SH.shown = false; SH.pic = -1; SH.gone = Object.create(null);
+  sfx('swish');
   render();
   toast('Board shuffled', 'ok');
 }
@@ -8845,20 +8983,22 @@ function paintWheel(v, stage, live) {
         : '') +
     '</div>';
 
-  /* Both windows turn the same wheel to the same place. A spin that is already
-     under way is picked up part-drawn rather than snapping to the end. */
+  /* The wheel is turned frame by frame rather than handed to a CSS transition,
+     for two reasons: both windows run the same easing from the same timestamp
+     so they stay in step even if one repaints late, and the ticking can be
+     fired exactly as a sector crosses the pin instead of being guessed at. */
   const svg = $('#wheel-svg', stage);
-  const since = v.wheel.spinAt ? Date.now() - v.wheel.spinAt : SPIN_MS;
   if (svg) {
-    if (since < SPIN_MS && !reduced()) {
-      svg.style.transform = 'rotate(' + (v.wheel.rot - 360 * 3) + 'deg)';
-      svg.getBoundingClientRect();                         /* commit the start */
-      svg.style.transition = 'transform ' + Math.max(0.2, (SPIN_MS - since) / 1000) +
-                             's cubic-bezier(.16,.74,.18,1)';
-      svg.style.transform = 'rotate(' + v.wheel.rot + 'deg)';
+    const elapsed = v.wheel.spinAt ? Date.now() - v.wheel.spinAt : SPIN_MS;
+    if (v.wheel.spinAt && elapsed < SPIN_MS && !reduced()) {
+      turnWheel(svg, v.wheel.from, v.wheel.rot, v.wheel.spinAt, items.length, live);
     } else {
-      svg.style.transition = 'none';
       svg.style.transform = 'rotate(' + v.wheel.rot + 'deg)';
+    }
+    if (v.wheel.winner >= 0) {
+      svg.classList.add('won');
+      svg.querySelectorAll('[data-k="' + v.wheel.winner + '"]')
+         .forEach(el => el.classList.add('hit'));
     }
   }
   if (!live) return;
@@ -8866,29 +9006,56 @@ function paintWheel(v, stage, live) {
   $('#wheel-edit').onclick = editNames;
 }
 
+/* easeOutQuint — a heavy wheel let go of */
+const ease = t => 1 - Math.pow(1 - t, 5);
+
+function turnWheel(el, from, to, startedAt, n, withSound) {
+  const seg = 360 / n;
+  let lastSeg = Math.floor(from / seg), lastTick = 0;
+  (function frame() {
+    if (!el.isConnected) return;
+    const t = Math.min(1, (Date.now() - startedAt) / SPIN_MS);
+    const a = from + (to - from) * ease(t);
+    el.style.transform = 'rotate(' + a + 'deg)';
+    const cur = Math.floor(a / seg);
+    if (cur !== lastSeg) {
+      lastSeg = cur;
+      /* at full speed the sectors fly past faster than a click can be heard,
+         so thin them out; the rhythm opens up on its own as the wheel slows */
+      const t2 = Date.now();
+      if (withSound && t2 - lastTick > 55) { lastTick = t2; sfx('tock'); }
+    }
+    if (t < 1) requestAnimationFrame(frame);
+  })();
+}
+
 function wheelFace(items) {
   const n = items.length, R = 100;
   const size = n <= 6 ? 11 : n <= 10 ? 8.5 : n <= 16 ? 6.5 : 5;
-  let out = '<circle cx="0" cy="0" r="102" fill="#fff"/>';
+  let out = '';
   for (let i = 0; i < n; i++) {
     const a0 = (i / n) * Math.PI * 2 - Math.PI / 2;
     const a1 = ((i + 1) / n) * Math.PI * 2 - Math.PI / 2;
     const x0 = (R * Math.cos(a0)).toFixed(2), y0 = (R * Math.sin(a0)).toFixed(2);
     const x1 = (R * Math.cos(a1)).toFixed(2), y1 = (R * Math.sin(a1)).toFixed(2);
     const big = (a1 - a0) > Math.PI ? 1 : 0;
-    out += '<path d="M0,0 L' + x0 + ',' + y0 + ' A' + R + ',' + R + ' 0 ' + big + ' 1 ' + x1 + ',' + y1 +
-           ' Z" fill="' + HUES[i % HUES.length] + '" stroke="#fff" stroke-width="0.8"/>';
+    out += '<path data-k="' + i + '" d="M0,0 L' + x0 + ',' + y0 + ' A' + R + ',' + R + ' 0 ' + big +
+           ' 1 ' + x1 + ',' + y1 + ' Z" fill="' + HUES[i % HUES.length] + '" stroke="#fff" stroke-width="0.8"/>';
     const am = (a0 + a1) / 2;
     const lx = (R * 0.63 * Math.cos(am)), ly = (R * 0.63 * Math.sin(am));
     /* Text laid along the radius reads upside down on the left half, so flip
        those by half a turn — anchored in the middle, it stays put. */
     let deg = ((am * 180 / Math.PI) % 360 + 360) % 360;
     if (deg > 90 && deg < 270) deg -= 180;
-    out += '<text x="' + lx.toFixed(2) + '" y="' + ly.toFixed(2) + '" fill="#fff" font-size="' + size +
+    out += '<text data-k="' + i + '" x="' + lx.toFixed(2) + '" y="' + ly.toFixed(2) + '" fill="#fff" font-size="' + size +
            '" font-weight="700" text-anchor="middle" dominant-baseline="central" ' +
            'transform="rotate(' + deg.toFixed(2) + ' ' + lx.toFixed(2) + ' ' + ly.toFixed(2) + ')">' +
            esc(String(items[i]).slice(0, 18)) + '</text>';
   }
+  /* The rim goes on top rather than under: a disc behind the sectors would
+     mean dimming one fades it toward white, which on a dark stage reads as
+     lighter rather than further away. */
+  out += '<circle cx="0" cy="0" r="100.6" fill="none" stroke="#fff" stroke-width="3.2"/>';
   return out;
 }
 
@@ -8902,9 +9069,11 @@ function spin() {
   let target = -(k + 0.5) * 360 / n;
   const turns = 4 + Math.floor(Math.random() * 3);
   while (target < SH.rot + turns * 360) target += 360;
+  SH.spinFrom = SH.rot;
   SH.rot = target;
   SH.winner = -1;
   SH.spinAt = reduced() ? 0 : Date.now();
+  sfx('swish');
   render();
   if (reduced()) { land(k); return; }
   SH.spinning = true;
@@ -8916,7 +9085,7 @@ function land(k) {
   SH.winner = k;
   SH.spinAt = 0;
   render();
-  Q.Sound.right();
+  sfx('sting');
   if (!reduced()) Q.Confetti.fire(1400);
 }
 
@@ -8938,7 +9107,7 @@ function editNames() {
       };
       $('#wn-save', box).onclick = () => {
         SH.names = $('#wn', box).value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 24);
-        SH.winner = -1; SH.rot = 0; SH.spinAt = 0;
+        SH.winner = -1; SH.rot = 0; SH.spinFrom = 0; SH.spinAt = 0;
         store(); close(); render();
       };
     });
@@ -8962,8 +9131,9 @@ function paintReveal(v, stage, live) {
       '<img src="' + esc(q.image) + '" alt="">' +
       '<div class="reveal-tiles" style="grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr)">' +
         Array.apply(null, new Array(PIECES)).map((_, i) =>
-          '<i' + (live ? ' data-p="' + i + '"' : '') + (v.gone && v.gone[i] ? ' class="gone"' : '') + '>' +
-          (i + 1) + '</i>').join('') +
+          '<i' + (live ? ' data-p="' + i + '"' : '') +
+          (v.gone && v.gone[i] ? (v.justPiece === i ? ' class="gone lift"' : ' class="gone"') : '') +
+          '>' + (i + 1) + '</i>').join('') +
       '</div>' +
     '</div>' +
     (v.shown ? '<h2 class="show-text" style="font-size:clamp(20px,3vw,36px)">' + esc(q.text) +
@@ -8980,24 +9150,37 @@ function paintReveal(v, stage, live) {
   if (!live) return;
   SH.pic = idx;
   stage.querySelectorAll('[data-p]').forEach(el => {
-    el.onclick = () => { SH.gone[el.dataset.p] = 1; render(); };
+    el.onclick = () => {
+      SH.gone[el.dataset.p] = 1; SH.justPiece = Number(el.dataset.p);
+      sfx('lift'); render();
+    };
   });
   $('#rv-one').onclick = () => {
     const left = [];
     for (let i = 0; i < PIECES; i++) if (!SH.gone[i]) left.push(i);
     if (!left.length) return;
-    SH.gone[left[Math.floor(Math.random() * left.length)]] = 1;
+    const one = left[Math.floor(Math.random() * left.length)];
+    SH.gone[one] = 1; SH.justPiece = one;
+    sfx('lift');
     render();
   };
-  $('#rv-all').onclick = () => { for (let i = 0; i < PIECES; i++) SH.gone[i] = 1; render(); };
+  $('#rv-all').onclick = () => {
+    for (let i = 0; i < PIECES; i++) SH.gone[i] = 1;
+    SH.justPiece = -1;
+    sfx('swish'); render();
+  };
   $('#rv-say').onclick = () => {
     for (let i = 0; i < PIECES; i++) SH.gone[i] = 1;
-    SH.shown = true; Q.Sound.right(); render();
+    SH.shown = true;
+    sfx('roll', 380);
+    setTimeout(() => sfx('sting'), 390);
+    render();
   };
   const nx = $('#rv-next');
   if (nx) nx.onclick = () => {
     SH.pic = (SH.pic + 1) % pics.length;
-    SH.gone = Object.create(null); SH.shown = false;
+    SH.gone = Object.create(null); SH.shown = false; SH.justPiece = -1;
+    sfx('swish');
     render();
   };
 }
@@ -9042,6 +9225,12 @@ function init() {
   $('#show-edit').onclick = () => { location.hash = '#/host'; };
   $('#show-reset').onclick = startOver;
   $('#show-screen').onclick = openScreen;
+  $('#show-sound').onclick = () => {
+    SH.sound = !SH.sound;
+    Q.Sound.enabled = SH.sound;
+    if (SH.sound) { Q.Sound.unlock(); sfx('pick'); }
+    store(); paintSound();
+  };
   $('#show-full').onclick = () => {
     const d = document;
     if (d.fullscreenElement) { if (d.exitFullscreen) d.exitFullscreen(); return; }

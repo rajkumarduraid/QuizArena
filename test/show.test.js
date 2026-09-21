@@ -227,6 +227,57 @@ const { ck, done } = harness();
 
   await screen.close();
 
+  console.log('\n— the stage —');
+  await p.evaluate(() => { location.hash = '#/show/numbers'; });
+  await p.reload();
+  await p.waitForSelector('#show-stage .pick-grid', { timeout: 10000 });
+  const [scr2] = await Promise.all([c.waitForEvent('page'), p.click('#show-screen')]);
+  await scr2.waitForLoadState('domcontentloaded');
+  await scr2.setViewportSize({ width: 1600, height: 1000 });
+  await scr2.waitForSelector('#screen-stage .pick-grid', { timeout: 12000 });
+
+  const grounds = await Promise.all([p, scr2].map(pg =>
+    pg.evaluate(() => getComputedStyle(document.querySelector('.screen.on')).backgroundColor)));
+  ck(grounds[0] !== grounds[1], 'the room gets a stage, the host keeps the daylight', grounds.join(' vs '));
+  const lum = await scr2.evaluate(() => {
+    const m = /rgba?\((\d+), ?(\d+), ?(\d+)/.exec(
+      getComputedStyle(document.querySelector('#s-screen')).backgroundColor);
+    return m ? (+m[1] + +m[2] + +m[3]) / 3 : 255;
+  });
+  ck(lum < 70, 'and that stage is actually dark', 'mean channel ' + Math.round(lum));
+  const inkOk = await scr2.evaluate(() => {
+    const m = /rgba?\((\d+), ?(\d+), ?(\d+)/.exec(
+      getComputedStyle(document.querySelector('#screen-stage h1')).color);
+    return m ? (+m[1] + +m[2] + +m[3]) / 3 : 0;
+  });
+  ck(inkOk > 180, 'with light text on it, not the light theme\u2019s ink', 'mean channel ' + Math.round(inkOk));
+
+  /* a board that runs off the bottom of a projector is the one thing the room
+     cannot work around */
+  const fits = await scr2.evaluate(() => {
+    const g = document.querySelector('#screen-stage .pick-grid');
+    const r = g.getBoundingClientRect();
+    return { bottom: Math.round(r.bottom), h: window.innerHeight, over: r.bottom > window.innerHeight + 1 };
+  });
+  ck(!fits.over, 'the whole board fits on the screen', 'grid ends at ' + fits.bottom + ' of ' + fits.h);
+
+  const tileAnim = await scr2.$eval('#screen-stage .pick-tile', e => getComputedStyle(e).animationName);
+  ck(tileAnim === 'tile-deal', 'the tiles deal themselves out', tileAnim);
+  await scr2.close();
+
+  console.log('\n— sound —');
+  ck(/Sound on/.test(await p.textContent('#show-sound')), 'sound starts on');
+  await p.click('#show-sound');
+  ck(/Sound off/.test(await p.textContent('#show-sound')), 'and can be turned off');
+  ck(await p.evaluate(() => window.QA.Sound.enabled === false), 'which actually silences it');
+  await p.waitForFunction(() =>
+    JSON.parse(localStorage.getItem('qa:show:v1') || '{}').sound === false, null, { timeout: 5000 });
+  await p.reload();
+  await p.waitForSelector('#s-show.on', { timeout: 10000 });
+  ck(/Sound off/.test(await p.textContent('#show-sound')), 'and it stays off next time');
+  await p.click('#show-sound');
+  ck(/Sound on/.test(await p.textContent('#show-sound')), 'and back on again');
+
   ck(errs.length === 0, 'no page errors', errs.slice(0, 3).join(' | '));
   await b.close();
   done();

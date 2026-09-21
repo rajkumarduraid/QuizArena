@@ -5,14 +5,27 @@ const path = require('path');
 const DIR = path.join(__dirname, '..');
 const EXE = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 
+/* A suite that crashes used to leave its server holding the port, and the next
+   suite would then fail to start for no reason of its own. Every child is
+   registered for teardown, however this process ends. */
+const spawned = [];
+const reap = () => { spawned.forEach(c => { try { c.kill('SIGKILL'); } catch (e) {} }); spawned.length = 0; };
+process.on('exit', reap);
+['SIGINT', 'SIGTERM', 'uncaughtException', 'unhandledRejection'].forEach(sig => {
+  process.on(sig, e => { reap(); if (sig === 'uncaughtException' || sig === 'unhandledRejection') {
+    console.error('CRASHED:', e); process.exit(2);
+  } else process.exit(130); });
+});
+
 function startServer(port, runtime) {
   return new Promise((res, rej) => {
     const cmd = runtime === 'python' ? 'python3' : 'node';
     const file = runtime === 'python' ? 'server.py' : 'server.js';
     const p = spawn(cmd, [path.join(DIR, file), String(port)], { stdio: ['ignore', 'pipe', 'pipe'] });
+    spawned.push(p);
     let out = '';
     p.stdout.on('data', d => { out += d; if (/Quiz Arena is running/.test(out)) res(p); });
-    p.on('exit', c => rej(new Error('server exited ' + c)));
+    p.on('exit', c => rej(new Error('server exited ' + c + ' — is port ' + port + ' already taken?')));
     setTimeout(() => rej(new Error('server did not start')), 9000);
   });
 }

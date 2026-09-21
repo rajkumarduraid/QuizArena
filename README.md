@@ -168,7 +168,7 @@ projector. From then on there are two views of the same thing:
 
 | | |
 |---|---|
-| **The room's window** | The question, the options, and the right/wrong animation. No toolbar, no buttons, bigger type. Nothing to click and nothing to give the answer away. |
+| **The room's window** | A dark stage: the question, the options, and the right/wrong animation, sized for the back of a room. No toolbar, no buttons, nothing to click and nothing to give the answer away. |
 | **Your window** | The same content, plus every control: open a number, show the answer, go back, spin, start over. |
 
 They talk to each other three ways at once — the window handle, a
@@ -199,6 +199,17 @@ reshuffles and clears.
 
 Keys for when you have a hand on a clicker: <kbd>Space</kbd> shows the answer
 then moves on, <kbd>Esc</kbd> goes back to the board.
+
+### Sound
+
+On by default, with a toggle in the toolbar. A number opening, a roll under the
+pause before an answer, a sting when it lands, a tick for each name the wheel
+passes, a soft lift for each piece of a picture. Nothing long enough to talk
+over.
+
+It plays from **your** window, not the room's. A window opened by a script has
+had no click of its own, so its audio would stay muted — and both windows are
+on the one machine driving the one set of speakers anyway.
 
 ### Spin the wheel
 

@@ -780,7 +780,7 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
    from how many there are rather than from a minimum width that leaves the
    bottom half of the screen empty. */
 .pick-grid.big{grid-template-columns:repeat(var(--cols,4),minmax(0,1fr)); gap:clamp(10px,1.4vw,20px);
-  width:min(100%,min(1180px,calc((100dvh - 250px) * var(--cols,4) / var(--rows,3)))); margin-inline:auto}
+  width:min(100%,min(1180px,calc((100dvh - 330px) * var(--cols,4) / var(--rows,3)))); margin-inline:auto}
 .pick-tile{aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:5px; padding:6px; border-radius:var(--r-l); border:1px solid var(--brand-line); color:var(--ink);
   background:linear-gradient(168deg,#fff,var(--brand-soft)); box-shadow:var(--sh-1); font:inherit;
@@ -859,19 +859,78 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
                     to{transform:scale(1) rotate(0); opacity:1}}
 .show-actions{display:flex; gap:11px; flex-wrap:wrap; justify-content:center}
 
-/* ---- the audience's own window: the same thing, with the chrome gone and
-   everything one size up, because it is across the room ---- */
+/* ---- the audience's own window ----
+   The host's window is a tool and stays on the app's daylight ground. This one
+   is a stage at the end of a room, so it goes dark: colour reads louder, a
+   projector's black is kinder on the eyes, and the two are never confused for
+   one another at a glance. The tokens are redefined here and the components
+   below go on reading from them, so nothing needed a second set of rules. */
+#s-screen{
+  --ink:#F6F7FF; --ink-2:#CFD2F0; --muted:#9A9DC4; --faint:#6E7199;
+  --surface:#221E44; --surface-2:#2A2553; --sunken:#1B1838;
+  --line:#3B3572; --line-2:#514A96;
+  --brand:#A78BFF; --brand-2:#C4B2FF; --brand-soft:#2E2760; --brand-line:#4C4394;
+  --ok:#4ADE9B; --gold:#FFC65C;
+  color:var(--ink);
+  background:
+    radial-gradient(1100px 760px at 50% 26%, #2B2459 0%, rgba(43,36,89,0) 68%),
+    radial-gradient(900px 700px at 88% 92%, #1F2A5E 0%, rgba(31,42,94,0) 62%),
+    #101128;
+}
 .screen-stage{padding:clamp(18px,3vw,50px)}
 .screen-stage .show-head h1{font-size:clamp(30px,5.4vw,62px)}
 .screen-stage .show-head p{font-size:clamp(15px,1.8vw,22px)}
-.screen-stage .show-text{font-size:clamp(28px,5.2vw,66px)}
+.screen-stage .show-text{font-size:clamp(28px,5.2vw,66px); text-shadow:0 2px 28px rgba(0,0,0,.35)}
 .screen-stage .show-ans{font-size:clamp(18px,2.4vw,34px);
-  padding:clamp(14px,2vw,28px) clamp(16px,2.2vw,30px)}
-.screen-stage .show-img{max-height:min(46vh,540px)}
-.screen-stage .pick-grid.big{width:min(100%,min(1400px,calc((100dvh - 190px) * var(--cols,4) / var(--rows,3))))}
+  padding:clamp(14px,2vw,28px) clamp(16px,2.2vw,30px); box-shadow:0 10px 30px rgba(0,0,0,.34)}
+.screen-stage .show-img{max-height:min(46vh,540px); border-color:var(--line-2);
+  box-shadow:0 20px 60px rgba(0,0,0,.5)}
+/* the reserve covers the heading, the stage padding and the grid's own gaps —
+   a board that runs off the bottom of a projector is worse than a small one */
+.screen-stage .pick-grid.big{width:min(100%,min(1400px,calc((100dvh - 300px) * var(--cols,4) / var(--rows,3))))}
 .screen-stage .pick-grid.big .pick-tile .n{font-size:clamp(44px,8vw,104px)}
 .screen-stage .wheel-hold{width:min(66vh,min(680px,88vw))}
 .screen-stage .wheel-out{font-size:clamp(26px,4.4vw,56px)}
+.screen-stage .qno{letter-spacing:.24em}
+
+/* the tiles are lit panels on the stage rather than paper cards */
+#s-screen .pick-tile{
+  background:linear-gradient(168deg,rgba(255,255,255,.13),rgba(255,255,255,.04));
+  border-color:rgba(167,139,255,.42);
+  box-shadow:0 14px 34px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.14)}
+#s-screen .pick-tile .n{color:#EDE9FF; text-shadow:0 0 26px rgba(167,139,255,.6)}
+#s-screen .pick-tile.done{background:rgba(255,255,255,.035); border-color:rgba(255,255,255,.09);
+  box-shadow:none}
+#s-screen .pick-tile.done .n{color:rgba(255,255,255,.34); text-shadow:none}
+#s-screen .pick-tile.done .sub{color:rgba(255,255,255,.4)}
+#s-screen .wheel-hold svg{filter:drop-shadow(0 18px 44px rgba(0,0,0,.55))}
+#s-screen .wheel-pin{border-top-color:#FFC65C;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+#s-screen .wheel-hub{background:#1B1838; border-color:rgba(255,255,255,.35)}
+#s-screen .wheel-out.on{color:#FFD98A; text-shadow:0 0 34px rgba(255,198,92,.45)}
+#s-screen .reveal-hold{border-color:var(--line-2); box-shadow:0 22px 60px rgba(0,0,0,.5)}
+
+/* ---- entrances ----
+   Everything the room is about to read arrives, rather than being there
+   already: a board deals itself out, a question rises, the options follow it
+   in. One beat each, nothing that outstays a presenter's pause. */
+.pick-grid .pick-tile{animation:tile-deal .46s var(--spring) both;
+  animation-delay:calc(var(--i,0) * 38ms)}
+@keyframes tile-deal{from{opacity:0; transform:translateY(16px) scale(.86)}
+                     to{opacity:1; transform:none}}
+.pick-tile.just-done .n{animation:strike .5s var(--ease) both}
+@keyframes strike{from{transform:scale(1.35); opacity:.2} to{transform:scale(1); opacity:1}}
+
+/* `fresh` is only on a question that has not been answered yet, so giving the
+   answer does not make the question itself fly in a second time */
+.show-q.fresh .qno{animation:rise .34s var(--ease) both}
+.show-q.fresh .show-text{animation:rise .46s var(--ease) both .06s}
+.show-q.fresh .show-img{animation:rise .5s var(--spring) both .04s}
+/* only on the way in — once revealed, the staging above owns these */
+.show-answers:not(.revealed) .show-ans{animation:deal-in .44s var(--spring) both;
+  animation-delay:calc(180ms + var(--d,0ms) * .55)}
+@keyframes deal-in{from{opacity:0; transform:translateY(20px) scale(.95)}
+                   to{opacity:1; transform:none}}
 
 /* ---- the wheel ---- */
 .wheel-wrap{display:flex; flex-direction:column; align-items:center; gap:clamp(12px,2vw,22px)}
@@ -885,7 +944,14 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   background:#fff; border:3px solid var(--line-2); box-shadow:var(--sh-1)}
 .wheel-out{font-family:var(--display); font-weight:var(--dw); font-size:clamp(22px,3.6vw,44px);
   min-height:1.2em; text-align:center; text-wrap:balance}
-.wheel-out.on{animation:rise .45s var(--spring) both; color:var(--brand)}
+.wheel-out.on{animation:win-name .6s var(--spring) both; color:var(--brand)}
+@keyframes win-name{from{opacity:0; transform:scale(.7)}
+                    60%{opacity:1; transform:scale(1.08)}
+                    to{opacity:1; transform:scale(1)}}
+/* once it has landed, everything but the winner steps back */
+#wheel-svg path, #wheel-svg text{transition:opacity .5s var(--ease)}
+#wheel-svg.won path, #wheel-svg.won text{opacity:.24}
+#wheel-svg.won path.hit, #wheel-svg.won text.hit{opacity:1}
 
 /* ---- picture reveal ---- */
 .reveal-hold{position:relative; width:min(1000px,100%); margin-inline:auto; border-radius:var(--r-l);
@@ -898,6 +964,11 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   font-size:clamp(12px,1.6vw,20px); cursor:pointer; font-style:normal;
   transition:opacity .38s var(--ease), transform .38s var(--ease)}
 .reveal-tiles i.gone{opacity:0; transform:scale(.72); pointer-events:none}
+/* only the piece just taken off plays; the rest are already where they were */
+.reveal-tiles i.gone.lift{animation:piece-off .5s var(--ease) both}
+@keyframes piece-off{from{opacity:1; transform:none}
+                     55%{opacity:.7; transform:scale(1.06) rotate(-3deg)}
+                     to{opacity:0; transform:scale(.58) rotate(9deg)}}
 
 /* ---- race strip, shown when a host is running the puzzle live ---- */
 .pz-race{width:min(600px,100%); display:flex; flex-direction:column; gap:8px; padding:13px 15px;

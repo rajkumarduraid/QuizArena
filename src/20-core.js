@@ -148,7 +148,36 @@ const Sound = (function () {
     right() { [784, 1047].forEach((f, i) => setTimeout(() => blip(f, 0.18, 'triangle', 0.12), i * 90)); },
     wrong() { blip(180, 0.3, 'sawtooth', 0.09); },
     times() { blip(300, 0.45, 'sawtooth', 0.1); },
-    win()   { [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => blip(f, 0.28, 'triangle', 0.13), i * 130)); }
+    win()   { [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => blip(f, 0.28, 'triangle', 0.13), i * 130)); },
+
+    /* ---- the big screen ----
+       A room hears these over a projector, so they are shorter and softer than
+       a game-show sting: enough to punctuate what just happened on the wall,
+       never enough to talk over the person presenting. */
+    pick()   { [523, 784].forEach((f, i) => setTimeout(() => blip(f, 0.13, 'triangle', 0.09), i * 70)); },
+    tock()   { blip(1500, 0.03, 'square', 0.035); },
+    lift()   { blip(720, 0.08, 'triangle', 0.055); },
+    /* a low roll under the pause before an answer is given */
+    roll(ms) {
+      const n = Math.max(3, Math.round((ms || 600) / 55));
+      for (let i = 0; i < n; i++) {
+        setTimeout(() => blip(150 + i * 4, 0.05, 'triangle', 0.035 + i * 0.002), i * 55);
+      }
+    },
+    sting() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => blip(f, 0.24, 'triangle', 0.115), i * 78)); },
+    dud()   { blip(196, 0.16, 'sine', 0.045); },
+    swish() {
+      const c = ensure(); if (!c || !on) return;
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(220, c.currentTime);
+      o.frequency.exponentialRampToValueAtTime(1100, c.currentTime + 0.22);
+      g.gain.setValueAtTime(0.0001, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.07, c.currentTime + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.26);
+      o.connect(g); g.connect(c.destination);
+      o.start(); o.stop(c.currentTime + 0.3);
+    }
   };
 })();
 
