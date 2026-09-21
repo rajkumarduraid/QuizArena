@@ -35,6 +35,11 @@
         <h3>Open dashboard</h3>
         <p>A projector&#8209;friendly live scoreboard: team race, fastest responders, and the answer breakdown.</p>
       </button>
+      <button class="choice e" id="go-show">
+        <span class="badge" data-ico="grid"></span>
+        <h3>Big screen</h3>
+        <p>Present from one screen, no phones and no sign&#8209;up. The room calls a number, you tap it, the question comes up.</p>
+      </button>
       <button class="choice d" id="go-puzzles">
         <span class="badge" data-ico="puzzle"></span>
         <h3>Play a puzzle</h3>
@@ -221,7 +226,7 @@
                 <label class="switch"><input type="checkbox" id="shuffle-q"><span class="track"></span></label>
               </div>
               <div class="spread">
-                <div><b style="font-size:14px">Pick&#8209;a&#8209;number board</b><p class="dim" style="font-size:13px;margin-top:3px">Put the rounds behind numbered tiles on the big screen. Someone calls a number, you tap it, and whatever is behind it opens.</p></div>
+                <div><b style="font-size:14px">Let the room choose the order</b><p class="dim" style="font-size:13px;margin-top:3px">The rounds go behind numbered tiles and the room calls them out. This is the <i>scored</i> version, with players and a leaderboard &mdash; for a screen on its own, use <b>Big screen</b> from the start page instead.</p></div>
                 <label class="switch"><input type="checkbox" id="pick-board"><span class="track"></span></label>
               </div>
               <div class="spread">
@@ -415,6 +420,22 @@
     </div>
     <div class="play-body" id="play-body"></div>
   </div>
+</section>
+
+<!-- ============================ BIG SCREEN ============================ -->
+<section class="screen" id="s-show">
+  <header class="topbar no-print">
+    <div class="wrap-wide topbar-in">
+      <button class="brand" id="show-home" data-mark title="Back to start">Quiz Arena</button>
+      <span class="pill" id="show-title"></span>
+      <div class="grow"></div>
+      <div class="pz-levels" id="show-tools"></div>
+      <button class="btn ghost sm" id="show-edit" data-ico="sliders">Questions</button>
+      <button class="btn ghost sm" id="show-full" data-ico="eye">Full screen</button>
+      <button class="btn ghost sm" id="show-reset" data-ico="refresh">Start over</button>
+    </div>
+  </header>
+  <div class="show-stage" id="show-stage"></div>
 </section>
 
 <!-- ============================ PUZZLE HUB ============================ -->

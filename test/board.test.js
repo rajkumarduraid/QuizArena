@@ -18,7 +18,7 @@ const { ck, done } = harness();
   await host.waitForFunction(() => document.querySelectorAll('.qcard').length === 6);
 
   await host.click('.step[data-tab=rules]');
-  ck(!(await host.isChecked('#pick-board')), 'the board is off unless you ask for it');
+  ck(!(await host.isChecked('#pick-board')), 'the scored board is off unless you ask for it');
   await host.evaluate(() => {
     const c = document.querySelector('#pick-board');
     c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true }));

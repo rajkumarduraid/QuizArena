@@ -843,6 +843,10 @@ function route() {
     askCode('Open the live dashboard', c => { location.hash = '#/dash/' + c; route(); });
     return;
   }
+  if (head === 'show') {
+    Q.Show.open((parts[1] || '').toLowerCase());
+    return;
+  }
   if (head === 'puzzles') {
     Q.Host.showScreen('s-puzzles');
     Q.PuzzleUI.renderHub();
@@ -966,12 +970,14 @@ function boot() {
   Q.Build.init();
   Q.Host.init();
   Q.PuzzleUI.init();
+  Q.Show.init();
   initJoin();
 
   $('#go-host').onclick = () => { location.hash = '#/host'; route(); };
   $('#go-join').onclick = () => { location.hash = '#/join'; route(); };
   $('#go-dash').onclick = () => { location.hash = '#/dash'; route(); };
   $('#go-puzzles').onclick = () => { location.hash = '#/puzzles'; route(); };
+  $('#go-show').onclick = () => { location.hash = '#/show'; route(); };
   $('#btn-how').onclick = howItWorks;
   $('#build-home').onclick = () => { location.hash = '#/'; route(); };
 

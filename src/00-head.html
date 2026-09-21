@@ -236,6 +236,7 @@ input[type=color].inp{padding:3px; height:40px; cursor:pointer}
 .choice.b .badge{background:var(--ok-soft); color:var(--ok)}
 .choice.c .badge{background:var(--gold-soft); color:#A96E00}
 .choice.d .badge{background:var(--bad-soft); color:#B02244}
+.choice.e .badge{background:#E2F0FB; color:#0A5C8A}
 .choice h3{font-size:20px; margin-bottom:6px}
 .choice p{color:var(--muted); font-size:14px; line-height:1.55}
 .choice .go-arrow{position:absolute; right:20px; bottom:20px; color:var(--faint);
@@ -799,6 +800,65 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 .pick-tile.done .sub{color:var(--faint)}
 .pick-tile.just{animation:tile-pop .5s var(--spring) both}
 @keyframes tile-pop{from{transform:scale(.86);opacity:.2}to{transform:scale(1);opacity:1}}
+
+/* ============================================================
+   BIG SCREEN
+   One machine, one projector, nobody signing in. Everything here
+   is sized for the back of a room: the question is the largest
+   thing on the page and the controls get out of its way.
+   ============================================================ */
+.show-stage{flex:1; display:flex; flex-direction:column; justify-content:center;
+  padding:clamp(14px,2.4vw,34px); gap:clamp(12px,2vw,26px)}
+.show-head{text-align:center}
+.show-head h1{font-size:clamp(26px,4.6vw,48px)}
+.show-head p{color:var(--muted); font-size:clamp(14px,1.5vw,18px); margin-top:8px}
+
+.show-q{display:flex; flex-direction:column; align-items:center; gap:clamp(12px,2vw,24px);
+  width:min(1200px,100%); margin-inline:auto; animation:rise .4s var(--ease) both}
+.show-q .qno{font-family:var(--mono); font-size:13px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--muted)}
+.show-text{font-family:var(--display); font-weight:var(--dw); text-align:center; text-wrap:balance;
+  font-size:clamp(25px,4.4vw,54px); line-height:1.18}
+.show-img{max-height:min(38vh,420px); max-width:100%; border-radius:var(--r-l);
+  border:1px solid var(--line); box-shadow:var(--sh-2); object-fit:contain}
+.show-answers{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));
+  gap:clamp(9px,1.2vw,15px); width:100%}
+.show-answers.one-col{grid-template-columns:minmax(0,1fr)}
+.show-ans{display:flex; align-items:center; gap:14px; padding:clamp(12px,1.6vw,22px) clamp(14px,1.8vw,24px);
+  border-radius:var(--r-l); color:#fff; font-size:clamp(16px,2vw,26px); font-weight:600;
+  box-shadow:var(--sh-1); transition:opacity .3s var(--ease), transform .3s var(--ease)}
+.show-ans .shape{flex:none; display:inline-flex}
+.show-ans .shape svg{width:clamp(19px,2vw,28px); height:clamp(19px,2vw,28px)}
+.show-answers.revealed .show-ans{opacity:.34}
+.show-answers.revealed .show-ans.right{opacity:1; transform:scale(1.03);
+  box-shadow:0 0 0 4px #fff, 0 0 0 8px currentColor, var(--sh-3)}
+.show-actions{display:flex; gap:11px; flex-wrap:wrap; justify-content:center}
+
+/* ---- the wheel ---- */
+.wheel-wrap{display:flex; flex-direction:column; align-items:center; gap:clamp(12px,2vw,22px)}
+.wheel-hold{position:relative; width:min(60vh,min(560px,86vw)); aspect-ratio:1}
+.wheel-hold svg{width:100%; height:100%; display:block; filter:drop-shadow(0 12px 30px rgba(22,23,43,.18));
+  border-radius:50%}
+.wheel-pin{position:absolute; top:-6px; left:50%; transform:translateX(-50%);
+  width:0; height:0; border-left:15px solid transparent; border-right:15px solid transparent;
+  border-top:26px solid var(--ink); filter:drop-shadow(0 2px 3px rgba(0,0,0,.25)); z-index:2}
+.wheel-hub{position:absolute; inset:0; margin:auto; width:16%; height:16%; border-radius:50%;
+  background:#fff; border:3px solid var(--line-2); box-shadow:var(--sh-1)}
+.wheel-out{font-family:var(--display); font-weight:var(--dw); font-size:clamp(22px,3.6vw,44px);
+  min-height:1.2em; text-align:center; text-wrap:balance}
+.wheel-out.on{animation:rise .45s var(--spring) both; color:var(--brand)}
+
+/* ---- picture reveal ---- */
+.reveal-hold{position:relative; width:min(1000px,100%); margin-inline:auto; border-radius:var(--r-l);
+  overflow:hidden; border:1px solid var(--line); box-shadow:var(--sh-2); background:var(--sunken)}
+.reveal-hold img{width:100%; display:block; max-height:62vh; object-fit:contain; background:#fff}
+.reveal-tiles{position:absolute; inset:0; display:grid}
+.reveal-tiles i{background:linear-gradient(150deg,var(--brand-2),var(--brand));
+  border:1px solid rgba(255,255,255,.35); display:grid; place-items:center;
+  font-family:var(--display); font-weight:var(--dw); color:rgba(255,255,255,.62);
+  font-size:clamp(12px,1.6vw,20px); cursor:pointer; font-style:normal;
+  transition:opacity .38s var(--ease), transform .38s var(--ease)}
+.reveal-tiles i.gone{opacity:0; transform:scale(.72); pointer-events:none}
 
 /* ---- race strip, shown when a host is running the puzzle live ---- */
 .pz-race{width:min(600px,100%); display:flex; flex-direction:column; gap:8px; padding:13px 15px;

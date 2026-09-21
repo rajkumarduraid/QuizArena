@@ -236,6 +236,7 @@ input[type=color].inp{padding:3px; height:40px; cursor:pointer}
 .choice.b .badge{background:var(--ok-soft); color:var(--ok)}
 .choice.c .badge{background:var(--gold-soft); color:#A96E00}
 .choice.d .badge{background:var(--bad-soft); color:#B02244}
+.choice.e .badge{background:#E2F0FB; color:#0A5C8A}
 .choice h3{font-size:20px; margin-bottom:6px}
 .choice p{color:var(--muted); font-size:14px; line-height:1.55}
 .choice .go-arrow{position:absolute; right:20px; bottom:20px; color:var(--faint);
@@ -800,6 +801,65 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 .pick-tile.just{animation:tile-pop .5s var(--spring) both}
 @keyframes tile-pop{from{transform:scale(.86);opacity:.2}to{transform:scale(1);opacity:1}}
 
+/* ============================================================
+   BIG SCREEN
+   One machine, one projector, nobody signing in. Everything here
+   is sized for the back of a room: the question is the largest
+   thing on the page and the controls get out of its way.
+   ============================================================ */
+.show-stage{flex:1; display:flex; flex-direction:column; justify-content:center;
+  padding:clamp(14px,2.4vw,34px); gap:clamp(12px,2vw,26px)}
+.show-head{text-align:center}
+.show-head h1{font-size:clamp(26px,4.6vw,48px)}
+.show-head p{color:var(--muted); font-size:clamp(14px,1.5vw,18px); margin-top:8px}
+
+.show-q{display:flex; flex-direction:column; align-items:center; gap:clamp(12px,2vw,24px);
+  width:min(1200px,100%); margin-inline:auto; animation:rise .4s var(--ease) both}
+.show-q .qno{font-family:var(--mono); font-size:13px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--muted)}
+.show-text{font-family:var(--display); font-weight:var(--dw); text-align:center; text-wrap:balance;
+  font-size:clamp(25px,4.4vw,54px); line-height:1.18}
+.show-img{max-height:min(38vh,420px); max-width:100%; border-radius:var(--r-l);
+  border:1px solid var(--line); box-shadow:var(--sh-2); object-fit:contain}
+.show-answers{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));
+  gap:clamp(9px,1.2vw,15px); width:100%}
+.show-answers.one-col{grid-template-columns:minmax(0,1fr)}
+.show-ans{display:flex; align-items:center; gap:14px; padding:clamp(12px,1.6vw,22px) clamp(14px,1.8vw,24px);
+  border-radius:var(--r-l); color:#fff; font-size:clamp(16px,2vw,26px); font-weight:600;
+  box-shadow:var(--sh-1); transition:opacity .3s var(--ease), transform .3s var(--ease)}
+.show-ans .shape{flex:none; display:inline-flex}
+.show-ans .shape svg{width:clamp(19px,2vw,28px); height:clamp(19px,2vw,28px)}
+.show-answers.revealed .show-ans{opacity:.34}
+.show-answers.revealed .show-ans.right{opacity:1; transform:scale(1.03);
+  box-shadow:0 0 0 4px #fff, 0 0 0 8px currentColor, var(--sh-3)}
+.show-actions{display:flex; gap:11px; flex-wrap:wrap; justify-content:center}
+
+/* ---- the wheel ---- */
+.wheel-wrap{display:flex; flex-direction:column; align-items:center; gap:clamp(12px,2vw,22px)}
+.wheel-hold{position:relative; width:min(60vh,min(560px,86vw)); aspect-ratio:1}
+.wheel-hold svg{width:100%; height:100%; display:block; filter:drop-shadow(0 12px 30px rgba(22,23,43,.18));
+  border-radius:50%}
+.wheel-pin{position:absolute; top:-6px; left:50%; transform:translateX(-50%);
+  width:0; height:0; border-left:15px solid transparent; border-right:15px solid transparent;
+  border-top:26px solid var(--ink); filter:drop-shadow(0 2px 3px rgba(0,0,0,.25)); z-index:2}
+.wheel-hub{position:absolute; inset:0; margin:auto; width:16%; height:16%; border-radius:50%;
+  background:#fff; border:3px solid var(--line-2); box-shadow:var(--sh-1)}
+.wheel-out{font-family:var(--display); font-weight:var(--dw); font-size:clamp(22px,3.6vw,44px);
+  min-height:1.2em; text-align:center; text-wrap:balance}
+.wheel-out.on{animation:rise .45s var(--spring) both; color:var(--brand)}
+
+/* ---- picture reveal ---- */
+.reveal-hold{position:relative; width:min(1000px,100%); margin-inline:auto; border-radius:var(--r-l);
+  overflow:hidden; border:1px solid var(--line); box-shadow:var(--sh-2); background:var(--sunken)}
+.reveal-hold img{width:100%; display:block; max-height:62vh; object-fit:contain; background:#fff}
+.reveal-tiles{position:absolute; inset:0; display:grid}
+.reveal-tiles i{background:linear-gradient(150deg,var(--brand-2),var(--brand));
+  border:1px solid rgba(255,255,255,.35); display:grid; place-items:center;
+  font-family:var(--display); font-weight:var(--dw); color:rgba(255,255,255,.62);
+  font-size:clamp(12px,1.6vw,20px); cursor:pointer; font-style:normal;
+  transition:opacity .38s var(--ease), transform .38s var(--ease)}
+.reveal-tiles i.gone{opacity:0; transform:scale(.72); pointer-events:none}
+
 /* ---- race strip, shown when a host is running the puzzle live ---- */
 .pz-race{width:min(600px,100%); display:flex; flex-direction:column; gap:8px; padding:13px 15px;
   border-radius:var(--r-m); border:1px solid var(--brand-line); background:var(--brand-soft)}
@@ -916,6 +976,11 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
         <span class="badge" data-ico="chart"></span>
         <h3>Open dashboard</h3>
         <p>A projector&#8209;friendly live scoreboard: team race, fastest responders, and the answer breakdown.</p>
+      </button>
+      <button class="choice e" id="go-show">
+        <span class="badge" data-ico="grid"></span>
+        <h3>Big screen</h3>
+        <p>Present from one screen, no phones and no sign&#8209;up. The room calls a number, you tap it, the question comes up.</p>
       </button>
       <button class="choice d" id="go-puzzles">
         <span class="badge" data-ico="puzzle"></span>
@@ -1103,7 +1168,7 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
                 <label class="switch"><input type="checkbox" id="shuffle-q"><span class="track"></span></label>
               </div>
               <div class="spread">
-                <div><b style="font-size:14px">Pick&#8209;a&#8209;number board</b><p class="dim" style="font-size:13px;margin-top:3px">Put the rounds behind numbered tiles on the big screen. Someone calls a number, you tap it, and whatever is behind it opens.</p></div>
+                <div><b style="font-size:14px">Let the room choose the order</b><p class="dim" style="font-size:13px;margin-top:3px">The rounds go behind numbered tiles and the room calls them out. This is the <i>scored</i> version, with players and a leaderboard &mdash; for a screen on its own, use <b>Big screen</b> from the start page instead.</p></div>
                 <label class="switch"><input type="checkbox" id="pick-board"><span class="track"></span></label>
               </div>
               <div class="spread">
@@ -1297,6 +1362,22 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
     </div>
     <div class="play-body" id="play-body"></div>
   </div>
+</section>
+
+<!-- ============================ BIG SCREEN ============================ -->
+<section class="screen" id="s-show">
+  <header class="topbar no-print">
+    <div class="wrap-wide topbar-in">
+      <button class="brand" id="show-home" data-mark title="Back to start">Quiz Arena</button>
+      <span class="pill" id="show-title"></span>
+      <div class="grow"></div>
+      <div class="pz-levels" id="show-tools"></div>
+      <button class="btn ghost sm" id="show-edit" data-ico="sliders">Questions</button>
+      <button class="btn ghost sm" id="show-full" data-ico="eye">Full screen</button>
+      <button class="btn ghost sm" id="show-reset" data-ico="refresh">Start over</button>
+    </div>
+  </header>
+  <div class="show-stage" id="show-stage"></div>
 </section>
 
 <!-- ============================ PUZZLE HUB ============================ -->
@@ -8406,6 +8487,420 @@ Q.PuzzleUI = {
 })();
 
 /* ============================================================================
+   Quiz Arena — the big screen
+
+   One machine, one projector, nobody signing in. There is no room, no code, no
+   players and no score: the room calls something out, the host clicks it, and
+   the screen answers. Three tools share the surface:
+
+     Pick a number  — the questions sit behind shuffled tiles
+     Spin the wheel — a random name out of a list you keep
+     Reveal a picture — a photo uncovered a piece at a time
+
+   Everything is local to this browser. Nothing here touches the transport, so
+   it works from a downloaded file, on a locked-down laptop, offline.
+   ========================================================================= */
+(function () {
+'use strict';
+const Q = window.QA;
+const { $, $$, esc, ico, toast, modal, LS, clamp, shape, ACOLORS, reduced } = Q;
+
+const KEY = 'qa:show:v1';
+const HUES = ['#D62650', '#1B5BDB', '#B96A00', '#0B8C5E', '#6E38CE',
+              '#0A7594', '#C2410C', '#A32FB0', '#4F7A0B', '#B01457'];
+
+const TOOLS = [
+  { id: 'numbers', name: 'Pick a number' },
+  { id: 'wheel', name: 'Spin the wheel' },
+  { id: 'reveal', name: 'Reveal a picture' }
+];
+
+const SH = {
+  tool: 'numbers',
+  sig: '',
+  order: [],            /* tile position -> index into the question list */
+  used: Object.create(null),
+  at: -1,               /* question on screen, or -1 for the board */
+  shown: false,         /* has the answer been given away yet */
+  names: [],
+  rot: 0, spinning: false, winner: -1,
+  pic: -1, gone: Object.create(null)
+};
+
+/* Puzzle rounds need a room to race in, so the big screen only deals in
+   questions. */
+const questions = () => (Q.Build.getConfig().questions || []).filter(q => q.kind !== 'pz');
+const pictures = () => questions().filter(q => q.image);
+
+function store() {
+  LS.set(KEY, { sig: SH.sig, order: SH.order, used: SH.used, names: SH.names, tool: SH.tool });
+}
+
+/* The board is shuffled once per quiz and then kept, so a stray reload in the
+   middle of a session does not hand out the same question twice. */
+function load() {
+  const qs = questions();
+  const sig = qs.map(q => q.id).join('|');
+  const saved = LS.get(KEY, null);
+  SH.names = (saved && Array.isArray(saved.names)) ? saved.names : [];
+  if (saved && TOOLS.some(t => t.id === saved.tool)) SH.tool = saved.tool;
+  if (saved && saved.sig === sig && Array.isArray(saved.order) && saved.order.length === qs.length) {
+    SH.sig = sig; SH.order = saved.order.slice();
+    SH.used = saved.used || Object.create(null);
+    return;
+  }
+  reshuffle(sig, qs.length);
+}
+function reshuffle(sig, n) {
+  SH.sig = sig;
+  SH.order = [];
+  for (let i = 0; i < n; i++) SH.order.push(i);
+  for (let i = SH.order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = SH.order[i]; SH.order[i] = SH.order[j]; SH.order[j] = t;
+  }
+  SH.used = Object.create(null);
+  store();
+}
+
+/* ==================================================================== shell */
+function open(tool) {
+  load();
+  if (tool && TOOLS.some(t => t.id === tool)) SH.tool = tool;
+  SH.at = -1; SH.shown = false; SH.pic = -1;
+  Q.Host.showScreen('s-show');
+  const cfg = Q.Build.getConfig();
+  $('#show-title').textContent = cfg.title || 'Untitled quiz';
+  paintTools();
+  render();
+}
+
+function paintTools() {
+  const host = $('#show-tools');
+  host.innerHTML = TOOLS.map(t =>
+    '<button data-tool="' + t.id + '"' + (t.id === SH.tool ? ' class="on"' : '') + '>' +
+    esc(t.name) + '</button>').join('');
+  host.querySelectorAll('[data-tool]').forEach(el => {
+    el.onclick = () => {
+      SH.tool = el.dataset.tool;
+      SH.at = -1; SH.shown = false; SH.pic = -1; SH.winner = -1;
+      store(); paintTools(); render();
+    };
+  });
+}
+
+function render() {
+  const stage = $('#show-stage');
+  if (!stage) return;
+  if (SH.tool === 'wheel') { renderWheel(stage); return; }
+  if (SH.tool === 'reveal') { renderReveal(stage); return; }
+  renderNumbers(stage);
+}
+
+function empty(stage, msg, cta) {
+  stage.innerHTML =
+    '<div class="card center" style="width:min(560px,100%);margin-inline:auto;padding:40px 24px">' +
+      '<p style="font-size:17px;font-weight:650">' + esc(msg) + '</p>' +
+      (cta ? '<p class="dim" style="font-size:14px;margin-top:8px">' + cta + '</p>' : '') +
+      '<button class="btn primary" id="show-go-build" style="margin-top:16px">Write some questions</button>' +
+    '</div>';
+  $('#show-go-build').onclick = () => { location.hash = '#/host'; };
+}
+
+/* =========================================================== pick a number */
+function renderNumbers(stage) {
+  const qs = questions();
+  if (!qs.length) { empty(stage, 'There are no questions yet', 'The board puts one behind each number.'); return; }
+  if (SH.at >= 0) { renderQuestion(stage, qs[SH.at]); return; }
+
+  const left = SH.order.filter(qi => !SH.used[qi]).length;
+  const cols = Math.min(6, Math.max(3, Math.ceil(Math.sqrt(qs.length))));
+  const rows = Math.ceil(qs.length / cols);
+  stage.innerHTML =
+    '<div class="show-head">' +
+      '<h1>Pick a number</h1>' +
+      '<p>' + (left ? 'Someone call one out.' : 'Every number has been opened.') + '</p>' +
+    '</div>' +
+    '<div class="pick-grid big" style="--cols:' + cols + ';--rows:' + rows + '">' +
+      SH.order.map((qi, k) => {
+        const done = !!SH.used[qi];
+        return '<button class="pick-tile' + (done ? ' done' : '') + '" type="button"' +
+          (done ? ' disabled' : ' data-n="' + k + '"') +
+          ' aria-label="Number ' + (k + 1) + (done ? ', already opened' : '') + '">' +
+          '<span class="n">' + (k + 1) + '</span>' +
+          (done ? '<span class="sub">opened</span>' : '') +
+        '</button>';
+      }).join('') +
+    '</div>' +
+    (left ? '' :
+      '<div class="show-actions"><button class="btn primary" id="show-again">' +
+        ico('refresh') + 'Shuffle and start over</button></div>');
+
+  stage.querySelectorAll('[data-n]').forEach(el => {
+    el.onclick = () => {
+      SH.at = SH.order[Number(el.dataset.n)];
+      SH.shown = false;
+      SH.used[SH.at] = 1;
+      store();
+      render();
+    };
+  });
+  const again = $('#show-again');
+  if (again) again.onclick = startOver;
+}
+
+function renderQuestion(stage, q) {
+  const tile = SH.order.indexOf(SH.at) + 1;
+  const one = q.options.length <= 2 && q.options.join('').length > 40;
+  stage.innerHTML =
+    '<div class="show-q">' +
+      '<span class="qno">Number ' + tile + '</span>' +
+      (q.image ? '<img class="show-img" src="' + esc(q.image) + '" alt="">' : '') +
+      '<h2 class="show-text">' + esc(q.text) + '</h2>' +
+      '<div class="show-answers' + (one ? ' one-col' : '') + (SH.shown ? ' revealed' : '') + '">' +
+        q.options.map((o, i) =>
+          '<div class="show-ans' + (SH.shown && i === q.correct ? ' right' : '') +
+            '" style="background:' + ACOLORS[i] + '">' +
+            '<span class="shape">' + shape(i) + '</span><span>' + esc(o) + '</span></div>').join('') +
+      '</div>' +
+      '<div class="show-actions">' +
+        '<button class="btn ghost" id="show-back">' + ico('arrow-left') + 'Back to the board</button>' +
+        (SH.shown
+          ? '<button class="btn primary" id="show-next">Next number' + ico('arrow-right') + '</button>'
+          : '<button class="btn go" id="show-reveal">' + ico('eye') + 'Show the answer</button>') +
+      '</div>' +
+    '</div>';
+  $('#show-back').onclick = () => { SH.at = -1; SH.shown = false; render(); };
+  const rev = $('#show-reveal');
+  if (rev) rev.onclick = () => { SH.shown = true; Q.Sound.right(); render(); };
+  const nxt = $('#show-next');
+  if (nxt) nxt.onclick = () => { SH.at = -1; SH.shown = false; render(); };
+}
+
+function startOver() {
+  const qs = questions();
+  reshuffle(qs.map(q => q.id).join('|'), qs.length);
+  SH.at = -1; SH.shown = false; SH.pic = -1; SH.gone = Object.create(null);
+  render();
+  toast('Board shuffled', 'ok');
+}
+
+/* ========================================================== spin the wheel */
+function wheelNames() {
+  if (SH.names.length) return SH.names;
+  const teams = (Q.Build.getConfig().teams || []).map(t => t.name).filter(Boolean);
+  return teams.length ? teams : ['Add some names'];
+}
+
+function renderWheel(stage) {
+  const items = wheelNames();
+  stage.innerHTML =
+    '<div class="show-head"><h1>Spin the wheel</h1>' +
+      '<p>' + items.length + ' on the wheel &mdash; whoever it lands on is up.</p></div>' +
+    '<div class="wheel-wrap">' +
+      '<div class="wheel-hold">' +
+        '<div class="wheel-pin"></div>' +
+        '<svg id="wheel-svg" viewBox="-104 -104 208 208" style="transform:rotate(' + SH.rot + 'deg)">' +
+          wheelFace(items) + '</svg>' +
+        '<div class="wheel-hub"></div>' +
+      '</div>' +
+      '<div class="wheel-out' + (SH.winner >= 0 ? ' on' : '') + '">' +
+        (SH.winner >= 0 ? esc(items[SH.winner]) : '') + '</div>' +
+      '<div class="show-actions">' +
+        '<button class="btn go xl" id="wheel-spin"' + (items.length < 2 ? ' disabled' : '') + '>Spin</button>' +
+        '<button class="btn ghost" id="wheel-edit">' + ico('sliders') + 'Edit the names</button>' +
+      '</div>' +
+    '</div>';
+  $('#wheel-spin').onclick = spin;
+  $('#wheel-edit').onclick = editNames;
+}
+
+function wheelFace(items) {
+  const n = items.length, R = 100;
+  const size = n <= 6 ? 11 : n <= 10 ? 8.5 : n <= 16 ? 6.5 : 5;
+  let out = '<circle cx="0" cy="0" r="102" fill="#fff"/>';
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const a1 = ((i + 1) / n) * Math.PI * 2 - Math.PI / 2;
+    const x0 = (R * Math.cos(a0)).toFixed(2), y0 = (R * Math.sin(a0)).toFixed(2);
+    const x1 = (R * Math.cos(a1)).toFixed(2), y1 = (R * Math.sin(a1)).toFixed(2);
+    const big = (a1 - a0) > Math.PI ? 1 : 0;
+    out += '<path d="M0,0 L' + x0 + ',' + y0 + ' A' + R + ',' + R + ' 0 ' + big + ' 1 ' + x1 + ',' + y1 +
+           ' Z" fill="' + HUES[i % HUES.length] + '" stroke="#fff" stroke-width="0.8"/>';
+    const am = (a0 + a1) / 2;
+    const lx = (R * 0.63 * Math.cos(am)), ly = (R * 0.63 * Math.sin(am));
+    const label = String(items[i]).slice(0, 18);
+    /* Text laid along the radius reads upside down on the left half of the
+       wheel, so flip those by half a turn. Anchored in the middle, a flip
+       leaves the label exactly where it was and simply the right way up. */
+    let deg = ((am * 180 / Math.PI) % 360 + 360) % 360;
+    if (deg > 90 && deg < 270) deg -= 180;
+    out += '<text x="' + lx.toFixed(2) + '" y="' + ly.toFixed(2) + '" fill="#fff" font-size="' + size +
+           '" font-weight="700" text-anchor="middle" dominant-baseline="central" ' +
+           'transform="rotate(' + deg.toFixed(2) + ' ' + lx.toFixed(2) + ' ' + ly.toFixed(2) + ')">' +
+           esc(label) + '</text>';
+  }
+  return out;
+}
+
+/* The winner is drawn first and the wheel is then turned to put it under the
+   pin — which is the only way to be sure the pointer and the announcement can
+   never disagree. */
+function spin() {
+  const items = wheelNames();
+  if (items.length < 2 || SH.spinning) return;
+  const n = items.length;
+  const k = Math.floor(Math.random() * n);
+  let target = -(k + 0.5) * 360 / n;
+  const turns = 4 + Math.floor(Math.random() * 3);
+  while (target < SH.rot + turns * 360) target += 360;
+  SH.rot = target;
+  SH.winner = -1;
+
+  const el = $('#wheel-svg');
+  const out = $('.wheel-out');
+  out.textContent = '';
+  out.classList.remove('on');
+  if (reduced()) {
+    el.style.transition = 'none';
+    el.style.transform = 'rotate(' + SH.rot + 'deg)';
+    land(k, items);
+    return;
+  }
+  SH.spinning = true;
+  $('#wheel-spin').disabled = true;
+  el.style.transition = 'transform 4.4s cubic-bezier(.16,.74,.18,1)';
+  el.style.transform = 'rotate(' + SH.rot + 'deg)';
+  setTimeout(() => { SH.spinning = false; $('#wheel-spin').disabled = false; land(k, items); }, 4500);
+}
+function land(k, items) {
+  SH.winner = k;
+  const out = $('.wheel-out');
+  if (out) { out.textContent = items[k]; out.classList.add('on'); }
+  Q.Sound.right();
+  if (!reduced()) Q.Confetti.fire(1400);
+}
+
+function editNames() {
+  modal(
+    '<h2 style="font-size:22px">Who is on the wheel?</h2>' +
+    '<p class="dim" style="font-size:13.5px;margin-top:7px">One per line. Names, teams, topics, forfeits &mdash; ' +
+    'whatever you want it to land on.</p>' +
+    '<textarea class="inp" id="wn" rows="9" style="margin-top:13px;font-family:var(--mono);font-size:14px" ' +
+    'placeholder="Priya&#10;Ranjith&#10;Anita"></textarea>' +
+    '<div class="row" style="justify-content:space-between;margin-top:14px">' +
+      '<button class="btn ghost sm" id="wn-teams">Use my team names</button>' +
+      '<span><button class="btn ghost" data-close>Cancel</button>' +
+      '<button class="btn primary" id="wn-save">Save</button></span></div>',
+    (box, close) => {
+      $('#wn', box).value = SH.names.join('\n');
+      $('#wn-teams', box).onclick = () => {
+        $('#wn', box).value = (Q.Build.getConfig().teams || []).map(t => t.name).join('\n');
+      };
+      $('#wn-save', box).onclick = () => {
+        SH.names = $('#wn', box).value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 24);
+        SH.winner = -1; SH.rot = 0;
+        store(); close(); render();
+      };
+    });
+}
+
+/* ======================================================= reveal a picture */
+function renderReveal(stage) {
+  const pics = pictures();
+  if (!pics.length) {
+    empty(stage, 'No question has a picture yet',
+      'Add one in the builder and it can be uncovered a piece at a time.');
+    return;
+  }
+  if (SH.pic < 0 || SH.pic >= pics.length) { SH.pic = 0; SH.gone = Object.create(null); SH.shown = false; }
+  const q = pics[SH.pic];
+  const N = 4, M = 4, total = N * M;
+  const goneN = Object.keys(SH.gone).length;
+
+  stage.innerHTML =
+    '<div class="show-head"><h1>What is this?</h1>' +
+      '<p>' + (goneN >= total ? 'All uncovered.' : (total - goneN) + ' pieces still covering it') + '</p></div>' +
+    '<div class="reveal-hold">' +
+      '<img src="' + esc(q.image) + '" alt="">' +
+      '<div class="reveal-tiles" style="grid-template-columns:repeat(' + N + ',1fr);grid-template-rows:repeat(' + M + ',1fr)">' +
+        Array.apply(null, new Array(total)).map((_, i) =>
+          '<i data-p="' + i + '"' + (SH.gone[i] ? ' class="gone"' : '') + '>' + (i + 1) + '</i>').join('') +
+      '</div>' +
+    '</div>' +
+    (SH.shown ? '<h2 class="show-text" style="font-size:clamp(20px,3vw,36px)">' + esc(q.text) +
+                ' &mdash; <span style="color:var(--ok)">' + esc(q.options[q.correct]) + '</span></h2>' : '') +
+    '<div class="show-actions">' +
+      '<button class="btn primary" id="rv-one"' + (goneN >= total ? ' disabled' : '') + '>' +
+        ico('sparkle') + 'Uncover a piece</button>' +
+      '<button class="btn ghost" id="rv-all">Uncover it all</button>' +
+      '<button class="btn go" id="rv-say">' + ico('eye') + 'Show the answer</button>' +
+      (pics.length > 1 ? '<button class="btn ghost" id="rv-next">Another picture' + ico('arrow-right') + '</button>' : '') +
+    '</div>';
+
+  stage.querySelectorAll('[data-p]').forEach(el => {
+    el.onclick = () => { SH.gone[el.dataset.p] = 1; render(); };
+  });
+  $('#rv-one').onclick = () => {
+    const left = [];
+    for (let i = 0; i < total; i++) if (!SH.gone[i]) left.push(i);
+    if (!left.length) return;
+    SH.gone[left[Math.floor(Math.random() * left.length)]] = 1;
+    render();
+  };
+  $('#rv-all').onclick = () => {
+    for (let i = 0; i < total; i++) SH.gone[i] = 1;
+    render();
+  };
+  $('#rv-say').onclick = () => {
+    for (let i = 0; i < total; i++) SH.gone[i] = 1;
+    SH.shown = true;
+    Q.Sound.right();
+    render();
+  };
+  const nx = $('#rv-next');
+  if (nx) nx.onclick = () => {
+    SH.pic = (SH.pic + 1) % pics.length;
+    SH.gone = Object.create(null); SH.shown = false;
+    render();
+  };
+}
+
+/* =================================================================== boot */
+function init() {
+  const home = $('#show-home');
+  if (!home) return;
+  home.onclick = () => { location.hash = '#/'; };
+  $('#show-edit').onclick = () => { location.hash = '#/host'; };
+  $('#show-reset').onclick = startOver;
+  $('#show-full').onclick = () => {
+    const d = document;
+    if (d.fullscreenElement) { if (d.exitFullscreen) d.exitFullscreen(); return; }
+    const el = d.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => toast('This browser would not go full screen', 'warn'));
+    else toast('This browser has no full screen', 'warn');
+  };
+
+  /* A presenter has one hand on a clicker, so the keys that matter are the big
+     ones: space to give the answer, escape to get back to the board. */
+  addEventListener('keydown', e => {
+    if (!$('#s-show').classList.contains('on')) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (e.key === 'Escape' && SH.at >= 0) { SH.at = -1; SH.shown = false; render(); e.preventDefault(); }
+    else if (e.key === ' ' || e.key === 'Enter') {
+      if (SH.tool === 'wheel') { spin(); e.preventDefault(); }
+      else if (SH.at >= 0 && !SH.shown) { SH.shown = true; Q.Sound.right(); render(); e.preventDefault(); }
+      else if (SH.at >= 0) { SH.at = -1; SH.shown = false; render(); e.preventDefault(); }
+    }
+  });
+}
+
+Q.Show = { init: init, open: open, state: SH };
+})();
+
+/* ============================================================================
    Quiz Arena — player device, spectator dashboard, router
    ========================================================================= */
 (function () {
@@ -9250,6 +9745,10 @@ function route() {
     askCode('Open the live dashboard', c => { location.hash = '#/dash/' + c; route(); });
     return;
   }
+  if (head === 'show') {
+    Q.Show.open((parts[1] || '').toLowerCase());
+    return;
+  }
   if (head === 'puzzles') {
     Q.Host.showScreen('s-puzzles');
     Q.PuzzleUI.renderHub();
@@ -9373,12 +9872,14 @@ function boot() {
   Q.Build.init();
   Q.Host.init();
   Q.PuzzleUI.init();
+  Q.Show.init();
   initJoin();
 
   $('#go-host').onclick = () => { location.hash = '#/host'; route(); };
   $('#go-join').onclick = () => { location.hash = '#/join'; route(); };
   $('#go-dash').onclick = () => { location.hash = '#/dash'; route(); };
   $('#go-puzzles').onclick = () => { location.hash = '#/puzzles'; route(); };
+  $('#go-show').onclick = () => { location.hash = '#/show'; route(); };
   $('#btn-how').onclick = howItWorks;
   $('#build-home').onclick = () => { location.hash = '#/'; route(); };
 

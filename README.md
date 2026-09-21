@@ -53,7 +53,8 @@ host can pop it into a second window from the lobby.
 | **Picture rounds** | Attach an image to any question — it appears above the answers on every screen |
 | **Locked questions** | Players can't select, copy or drag the question text off their screen |
 | **Puzzle breaks** | Set Zip, Wend, Patches or Mini Sudoku for the room and rank everyone by solve time |
-| **Pick-a-number board** | Put the rounds behind numbered tiles on the big screen and let the room choose |
+| **Big screen** | Present from one machine with no phones, no sign-up and no scores |
+| **Pick-a-number board** | Or run the same idea *scored*, with players and a leaderboard |
 
 Scoring is configurable: how much speed is worth, a bonus for the fastest
 correct answer, a streak bonus, and an optional penalty for wrong answers.
@@ -149,6 +150,56 @@ A few things worth knowing:
   a picture or export the quiz if that happens.
 - The image is sent once when its question opens, not with every update.
   Anyone who joins mid-question, or reconnects, asks for it and gets it.
+
+---
+
+## Big screen
+
+**Big screen** on the start page is a presenter's tool, not a game with
+players. No room, no code, nobody joining, nothing scored — one machine, one
+projector, and a room that calls things out while you click. It runs entirely
+in the browser, so it works from a downloaded file on a locked-down laptop with
+no network at all.
+
+Three tools share the screen, and you switch between them at the top.
+
+### Pick a number
+
+The questions from your quiz go behind numbered tiles. Someone calls a number,
+you tap it, and the question fills the screen with its options. **Show the
+answer** marks the right one; **Back to the board** returns. A number you have
+opened is struck off so you never repeat one.
+
+The board is shuffled against your question order when the quiz changes, so the
+number gives nothing away — and it is remembered, so a stray reload in the
+middle of a session does not hand out the same question twice. **Start over**
+reshuffles and clears.
+
+Keys for when you have a hand on a clicker: <kbd>Space</kbd> shows the answer
+then moves on, <kbd>Esc</kbd> goes back to the board.
+
+### Spin the wheel
+
+A wheel of whatever you type into it — names, teams, topics, forfeits. Press
+**Spin** and it lands on one. The winner is drawn first and the wheel is turned
+to put it under the pin, so the pointer and the announcement can never
+disagree. The list is kept in this browser, and **Use my team names** fills it
+from the teams you already set up.
+
+### Reveal a picture
+
+Takes any question that has a picture and covers it with sixteen pieces. Lift
+them one at a time — click a piece, or let it pick one at random — and see how
+early the room can shout it out. **Show the answer** clears the rest and names
+it.
+
+---
+
+## The pick-a-number board (scored)
+
+If you *do* want the same idea with players and a leaderboard, there is a
+scored version inside a hosted game — see below. The difference is only whether
+anyone is holding a phone.
 
 ---
 
