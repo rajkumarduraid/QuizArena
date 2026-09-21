@@ -251,6 +251,29 @@ function briefHTML(snap, opts) {
   '</div>';
 }
 
+/* --------------------------------------------- pick-a-number board */
+/* A grid of numbered tiles with a round hidden behind each. The number says
+   nothing about which round it is — the mapping is shuffled when the room
+   opens — so the only thing a tile gives away is what it is worth. */
+function boardHTML(snap, opts) {
+  opts = opts || {};
+  const tiles = snap.board;
+  if (!tiles || !tiles.length) return '';
+  /* squarish: four across for a dozen, five for twenty, never fewer than three */
+  const cols = Math.min(6, Math.max(3, Math.ceil(Math.sqrt(tiles.length))));
+  const rows = Math.ceil(tiles.length / cols);
+  return '<div class="pick-grid' + (opts.big ? ' big' : '') + (opts.live ? ' live' : '') + '"' +
+    (opts.big ? ' style="--cols:' + cols + ';--rows:' + rows + '"' : '') + '>' +
+    tiles.map(t =>
+      '<button class="pick-tile' + (t.done ? ' done' : '') + '" type="button"' +
+        (opts.live && !t.done ? ' data-tile="' + t.n + '"' : ' disabled') +
+        ' aria-label="Number ' + t.n + (t.done ? ', already played' : ', worth ' + nf(t.points) + ' points') + '">' +
+        '<span class="n">' + t.n + '</span>' +
+        '<span class="sub">' + (t.done ? (t.by ? esc(t.by) : 'played') : nf(t.points)) + '</span>' +
+      '</button>').join('') +
+  '</div>';
+}
+
 /* ------------------------------------------------- the puzzle race */
 /* Who has cracked it, in order, and who is still at it. Drawn from the same
    snapshot on the host screen, the projector and a player's own board. */
@@ -319,6 +342,7 @@ function finalTableHTML(snap) {
 
 window.QA.Views = {
   teamOf, teamChip, ringHTML, setRing, answersHTML, distHTML, fastestHTML, briefHTML, pzBoardHTML,
+  boardHTML,
   speedListHTML, leaderboardHTML, teamBarsHTML, tilesHTML, tickerHTML,
   podiumHTML, finalTableHTML
 };

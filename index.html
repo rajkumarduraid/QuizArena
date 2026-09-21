@@ -770,6 +770,36 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 .sud-pad button.clear{font-size:14px; font-family:var(--sans); color:var(--muted)}
 .sud-pad button.spent{opacity:.34}
 
+/* ---- pick-a-number board ----
+   Built for the far end of a room: the numeral carries the tile, everything
+   else is a whisper. A played tile stays in place so the grid never reflows
+   under the person reading it out. */
+.pick-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(88px,1fr)); gap:11px}
+/* On a projector the tiles should fill the wall, so the column count comes
+   from how many there are rather than from a minimum width that leaves the
+   bottom half of the screen empty. */
+.pick-grid.big{grid-template-columns:repeat(var(--cols,4),minmax(0,1fr)); gap:clamp(10px,1.4vw,20px);
+  width:min(100%,min(1180px,calc((100dvh - 250px) * var(--cols,4) / var(--rows,3)))); margin-inline:auto}
+.pick-tile{aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:5px; padding:6px; border-radius:var(--r-l); border:1px solid var(--brand-line); color:var(--ink);
+  background:linear-gradient(168deg,#fff,var(--brand-soft)); box-shadow:var(--sh-1); font:inherit;
+  transition:transform .2s var(--spring), box-shadow .2s var(--ease), border-color .2s var(--ease)}
+.pick-tile .n{font-family:var(--display); font-weight:var(--dw); line-height:1; color:var(--brand);
+  font-size:clamp(26px,4.5vw,40px); font-variant-numeric:tabular-nums}
+.pick-grid.big .pick-tile .n{font-size:clamp(38px,7vw,74px)}
+.pick-tile .sub{font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums;
+  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pick-grid.big .pick-tile .sub{font-size:13px}
+.pick-grid.live .pick-tile:not(.done){cursor:pointer}
+.pick-grid.live .pick-tile:not(.done):hover{transform:translateY(-5px) scale(1.04);
+  box-shadow:var(--sh-3); border-color:var(--brand)}
+.pick-grid.live .pick-tile:not(.done):active{transform:translateY(-1px) scale(.99)}
+.pick-tile.done{background:var(--surface-2); border-color:var(--line); box-shadow:none}
+.pick-tile.done .n{color:var(--line-2); text-decoration:line-through}
+.pick-tile.done .sub{color:var(--faint)}
+.pick-tile.just{animation:tile-pop .5s var(--spring) both}
+@keyframes tile-pop{from{transform:scale(.86);opacity:.2}to{transform:scale(1);opacity:1}}
+
 /* ---- race strip, shown when a host is running the puzzle live ---- */
 .pz-race{width:min(600px,100%); display:flex; flex-direction:column; gap:8px; padding:13px 15px;
   border-radius:var(--r-m); border:1px solid var(--brand-line); background:var(--brand-soft)}
@@ -1071,6 +1101,10 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
               <div class="spread">
                 <div><b style="font-size:14px">Shuffle question order</b><p class="dim" style="font-size:13px;margin-top:3px">Randomised once, when the room opens.</p></div>
                 <label class="switch"><input type="checkbox" id="shuffle-q"><span class="track"></span></label>
+              </div>
+              <div class="spread">
+                <div><b style="font-size:14px">Pick&#8209;a&#8209;number board</b><p class="dim" style="font-size:13px;margin-top:3px">Put the rounds behind numbered tiles on the big screen. Someone calls a number, you tap it, and whatever is behind it opens.</p></div>
+                <label class="switch"><input type="checkbox" id="pick-board"><span class="track"></span></label>
               </div>
               <div class="spread">
                 <div><b style="font-size:14px">Block copying on player devices</b><p class="dim" style="font-size:13px;margin-top:3px">Questions and answers can&rsquo;t be selected, copied or dragged. A deterrent, not a lock &mdash; a screenshot still works.</p></div>
@@ -5525,6 +5559,29 @@ function briefHTML(snap, opts) {
   '</div>';
 }
 
+/* --------------------------------------------- pick-a-number board */
+/* A grid of numbered tiles with a round hidden behind each. The number says
+   nothing about which round it is — the mapping is shuffled when the room
+   opens — so the only thing a tile gives away is what it is worth. */
+function boardHTML(snap, opts) {
+  opts = opts || {};
+  const tiles = snap.board;
+  if (!tiles || !tiles.length) return '';
+  /* squarish: four across for a dozen, five for twenty, never fewer than three */
+  const cols = Math.min(6, Math.max(3, Math.ceil(Math.sqrt(tiles.length))));
+  const rows = Math.ceil(tiles.length / cols);
+  return '<div class="pick-grid' + (opts.big ? ' big' : '') + (opts.live ? ' live' : '') + '"' +
+    (opts.big ? ' style="--cols:' + cols + ';--rows:' + rows + '"' : '') + '>' +
+    tiles.map(t =>
+      '<button class="pick-tile' + (t.done ? ' done' : '') + '" type="button"' +
+        (opts.live && !t.done ? ' data-tile="' + t.n + '"' : ' disabled') +
+        ' aria-label="Number ' + t.n + (t.done ? ', already played' : ', worth ' + nf(t.points) + ' points') + '">' +
+        '<span class="n">' + t.n + '</span>' +
+        '<span class="sub">' + (t.done ? (t.by ? esc(t.by) : 'played') : nf(t.points)) + '</span>' +
+      '</button>').join('') +
+  '</div>';
+}
+
 /* ------------------------------------------------- the puzzle race */
 /* Who has cracked it, in order, and who is still at it. Drawn from the same
    snapshot on the host screen, the projector and a player's own board. */
@@ -5593,6 +5650,7 @@ function finalTableHTML(snap) {
 
 window.QA.Views = {
   teamOf, teamChip, ringHTML, setRing, answersHTML, distHTML, fastestHTML, briefHTML, pzBoardHTML,
+  boardHTML,
   speedListHTML, leaderboardHTML, teamBarsHTML, tilesHTML, tickerHTML,
   podiumHTML, finalTableHTML
 };
@@ -5654,6 +5712,7 @@ function defaultConfig() {
     speedW: 0.5, fastBonus: 100, streakBonus: 50, wrongPenalty: 0,
     defTime: 20, defPoints: 1000,
     pinOn: false, pin: '', lateJoin: true, showPlayersLb: true, shuffle: false, noCopy: true,
+    pickBoard: false,
     netMode: 'online', sound: true
   };
 }
@@ -5723,6 +5782,7 @@ function normaliseConfig(raw) {
     showPlayersLb: raw.showPlayersLb !== false,
     shuffle: !!raw.shuffle,
     noCopy: raw.noCopy !== false,
+    pickBoard: !!raw.pickBoard,
     netMode: raw.netMode === 'local' ? 'local' : 'online',
     sound: raw.sound !== false
   });
@@ -6147,6 +6207,7 @@ function renderRules() {
   c('#pin-on', cfg.pinOn); c('#late-join', cfg.lateJoin);
   c('#show-players-lb', cfg.showPlayersLb); c('#shuffle-q', cfg.shuffle);
   c('#no-copy', cfg.noCopy);
+  c('#pick-board', cfg.pickBoard);
   c('#sound-on', cfg.sound);
   $('#pin-field').classList.toggle('hide', !cfg.pinOn);
   const nm = document.querySelector('input[name=netmode][value="' + cfg.netMode + '"]'); if (nm) nm.checked = true;
@@ -6170,6 +6231,7 @@ function wireRules() {
   $('#show-players-lb').onchange = e => { cfg.showPlayersLb = e.target.checked; save(); };
   $('#shuffle-q').onchange = e => { cfg.shuffle = e.target.checked; save(); };
   $('#no-copy').onchange = e => { cfg.noCopy = e.target.checked; save(); };
+  $('#pick-board').onchange = e => { cfg.pickBoard = e.target.checked; save(); };
   $('#sound-on').onchange = e => { cfg.sound = e.target.checked; Q.Sound.enabled = cfg.sound; save(); };
   $$('input[name=netmode]').forEach(r => r.onchange = () => { cfg.netMode = r.value; save(); });
 }
@@ -6385,11 +6447,22 @@ function newGame(cfg) {
       const t = order[i]; order[i] = order[j]; order[j] = t;
     }
   }
+  /* With a pick-a-number board the tiles are shuffled independently of the
+     play order, so tile 7 is not round 7 and nothing is guessable from it. */
+  let board = null;
+  if (cfg.pickBoard) {
+    board = order.map((_, i) => i);
+    for (let i = board.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = board[i]; board[i] = board[j]; board[j] = t;
+    }
+  }
   return {
     cfg: JSON.parse(JSON.stringify(cfg)),
     code: roomCode(),
     phase: 'lobby',
     order, qi: -1,
+    board, picks: [], wins: Object.create(null),
     players: Object.create(null),
     cur: null,
     history: [],
@@ -6506,6 +6579,8 @@ function snapshot() {
     lateJoin: G.cfg.lateJoin,
     showPlayersLb: G.cfg.showPlayersLb,
     noCopy: G.cfg.noCopy,
+    board: boardTiles(),
+    picked: G.picks.length,
     pz: G.pz ? { game: G.pz.game, level: G.pz.level, number: G.pz.number,
                  board: pzBoard(), scored: !!G.pz.scored, planned: !!G.pz.planned,
                  points: G.pz.points,
@@ -6712,8 +6787,11 @@ function handleAnswer(m) {
 /* ----------------------------------------------------------- phase moves */
 function goLobby() { G.phase = 'lobby'; bcast(true); renderLobby(); }
 
-function askQuestion() {
-  G.qi++;
+/* The board and the plain running order both land here: one names the round
+   it wants, the other just takes the next one. */
+function askQuestion(orderIdx) {
+  if (orderIdx == null) G.qi++; else G.qi = orderIdx;
+  if (G.qi >= 0 && G.picks.indexOf(G.qi) < 0) G.picks.push(G.qi);
   const q = curQ();
   if (!q) { finish(); return; }
   if (q.kind === 'pz') {
@@ -6786,6 +6864,7 @@ function reveal() {
                    avatar: G.players[pid].avatar || 0, ms: ans[pid].ms }))
     .sort((a, b) => a.ms - b.ms);
 
+  if (fastest) G.wins[G.qi] = G.players[fastest.pid].name;
   G.history.push({
     qid: q.id, qn: G.qi + 1, text: q.text, correct: q.correct, options: q.options.slice(),
     dist, answered: Object.keys(ans).length, eligible: connectedArr().length,
@@ -6809,6 +6888,34 @@ function reveal() {
 }
 
 function showScores() { G.phase = 'scores'; bcast(true); lastStageKey = ''; renderStage(); }
+
+/* ------------------------------------------------- pick-a-number board */
+const allPlayed = () => !!G && G.picks.length >= G.order.length;
+
+function boardTiles() {
+  if (!G || !G.board) return null;
+  return G.board.map((oi, k) => {
+    const q = G.cfg.questions[G.order[oi]];
+    return { n: k + 1, points: q.points, done: G.picks.indexOf(oi) >= 0, by: G.wins[oi] || null };
+  });
+}
+
+function showBoard() {
+  if (!G || !G.board) return;
+  G.phase = 'board';
+  G.cur = null;
+  bcast(true);
+  lastStageKey = '';
+  showScreen('s-stage');
+  renderStage();
+}
+
+function pickTile(n) {
+  if (!G || !G.board || G.phase !== 'board') return;
+  const oi = G.board[Number(n) - 1];
+  if (oi == null || G.picks.indexOf(oi) >= 0) return;
+  askQuestion(oi);
+}
 
 /* ------------------------------------------------------------ puzzle round */
 /* A puzzle break drops into the room between questions. Only the game, level
@@ -6887,6 +6994,7 @@ function scorePuzzle() {
   const board = pzBoard();
   playersArr().forEach(p => { p.lastGain = null; p.lastMs = null; p.lastRight = null; });
   if (!board.length) return;
+  if (G.pz.planned) G.wins[G.qi] = board[0].name;
   const best = board[0].ms || 1;
   const w = G.cfg.speedW, base = G.pz.points == null ? (G.cfg.defPoints || 1000) : G.pz.points;
   board.forEach((row, i) => {
@@ -7175,9 +7283,15 @@ function stageControls() {
   } else if (p === 'reveal') {
     html = '<button class="btn primary" data-c="scores">Scoreboard' + ico('arrow-right') + '</button>';
   } else if (p === 'scores') {
-    html = G.qi >= G.order.length - 1
+    html = (G.board ? allPlayed() : G.qi >= G.order.length - 1)
       ? '<button class="btn go" data-c="finish">' + ico('flag') + 'Final results</button>'
-      : '<button class="btn go" data-c="next">Next question' + ico('arrow-right') + '</button>';
+      : G.board
+        ? '<button class="btn go" data-c="board">' + ico('grid') + 'Back to the board</button>'
+        : '<button class="btn go" data-c="next">Next question' + ico('arrow-right') + '</button>';
+  } else if (p === 'board') {
+    html = allPlayed()
+      ? '<button class="btn go" data-c="finish">' + ico('flag') + 'Final results</button>'
+      : '';
   } else if (p === 'puzzle') {
     html = '<button class="btn primary" data-c="pzend">' + ico('flag') + 'End puzzle &amp; score it</button>';
   } else if (p === 'pzresult') {
@@ -7196,9 +7310,13 @@ function stageControls() {
 function renderStage() {
   if (!G) return;
   const onPuzzle = G.phase === 'puzzle' || G.phase === 'pzresult';
-  $('#stage-progress').textContent = onPuzzle
-    ? (G.pz && G.pz.planned ? 'Puzzle · round ' + (G.qi + 1) + ' / ' + G.order.length : 'Puzzle break')
-    : 'Question ' + (G.qi + 1) + ' / ' + G.order.length;
+  /* With a board the rounds come out of order, so counting them off is the
+     only honest progress there is. */
+  const at = G.board ? G.picks.length : G.qi + 1;
+  $('#stage-progress').textContent =
+    G.phase === 'board' ? 'The board · ' + G.picks.length + ' / ' + G.order.length + ' played'
+    : onPuzzle ? (G.pz && G.pz.planned ? 'Puzzle · round ' + at + ' / ' + G.order.length : 'Puzzle break')
+    : (G.board ? 'Round ' : 'Question ') + at + ' / ' + G.order.length;
   $('#stage-code').textContent = 'Code ' + G.code;
   stageControls();
 
@@ -7232,6 +7350,22 @@ function renderStage() {
 
   ringEl = null;
   lastStageKey = key;
+
+  if (G.phase === 'board') {
+    const left = G.order.length - G.picks.length;
+    main.innerHTML =
+      '<div class="center" style="margin-bottom:18px">' +
+        '<h2 style="font-size:clamp(25px,4vw,40px)">Pick a number</h2>' +
+        '<p class="dim" style="margin-top:7px;font-size:15px">' +
+          (left ? 'Let someone in the room call one out, then tap it.'
+                : 'Every number has been played.') + '</p>' +
+        '<span class="pill accent" style="margin-top:11px">' +
+          (left ? left + ' of ' + G.order.length + ' still to go' : 'All ' + G.order.length + ' played') +
+        '</span>' +
+      '</div>' +
+      V.boardHTML(snap, { live: left > 0, big: true });
+    return;
+  }
 
   if (G.phase === 'puzzle' || G.phase === 'pzresult') {
     const g = (Q.Puzzles.GAMES.filter(x => x.id === G.pz.game)[0] || {});
@@ -7462,8 +7596,13 @@ function initHost() {
     if (!playersArr().length) return;
     G.startedAt = now();
     Sound.unlock();
-    askQuestion();
+    if (G.board) showBoard(); else askQuestion();
   };
+
+  $('#stage-main').addEventListener('click', e2 => {
+    const t = e2.target.closest('[data-tile]');
+    if (t) pickTile(t.dataset.tile);
+  });
 
   $('#lobby-players').addEventListener('click', e => {
     const chip = e.target.closest('[data-p]'); if (!chip) return;
@@ -7487,6 +7626,7 @@ function initHost() {
     else if (c === 'puzzle') askPuzzle();
     else if (c === 'pzend') endPuzzle();
     else if (c === 'pznext') afterPuzzle();
+    else if (c === 'board') showBoard();
   });
 
   $('#lobby-puzzle').onclick = askPuzzle;
@@ -8550,6 +8690,23 @@ function renderPlayer() {
     return;
   }
 
+  if (snap.phase === 'board') {
+    const tiles = snap.board || [];
+    const left = tiles.filter(t => !t.done).length;
+    const key2 = 'board:' + snap.picked;
+    if (P.renderKey === key2) return;
+    P.renderKey = key2; P.ring = null;
+    body.innerHTML =
+      '<div class="verdict" style="padding:20px 16px">' +
+        '<span class="em">' + ico('grid') + '</span>' +
+        '<h2>Pick a number</h2>' +
+        '<p class="dim waitdots" style="font-size:14px">Someone in the room is choosing</p>' +
+        '<span class="pill">' + (left ? left + ' of ' + tiles.length + ' left' : 'all played') + '</span>' +
+      '</div>' +
+      V.boardHTML(snap, {});
+    return;
+  }
+
   if (snap.phase === 'question') {
     const chosen = P.picked[round];
     const alreadyIn = chosen == null && m && m.hasAnswered;
@@ -8899,7 +9056,8 @@ function dashStatus() {
   const ph = $('#dash-phase');
   if (ph && D.snap) {
     const map = { lobby: 'Lobby', question: 'Question in play', reveal: 'Answer revealed',
-                  pzresult: 'Puzzle result', scores: 'Scoreboard', final: 'Final results' };
+                  board: 'Pick a number', pzresult: 'Puzzle result', scores: 'Scoreboard',
+                  final: 'Final results' };
     /* a puzzle built into the quiz is a round; one dropped in mid-session is a
        break, and the room should be told which it is looking at */
     map.puzzle = (D.snap.pz && D.snap.pz.planned) ? 'Puzzle round' : 'Puzzle break';
@@ -8957,6 +9115,21 @@ function renderDash() {
   }
 
   D.ring = null;
+  if (snap.phase === 'board') {
+    const tiles = snap.board || [];
+    const left = tiles.filter(t => !t.done).length;
+    main.innerHTML =
+      '<div class="center" style="margin-bottom:20px">' +
+        '<p class="dim" style="letter-spacing:.2em;text-transform:uppercase;font-size:12px;font-weight:750">' +
+          esc(snap.title) + '</p>' +
+        '<h1 style="font-size:clamp(30px,5.5vw,52px)">Pick a number</h1>' +
+        '<span class="pill accent" style="margin-top:12px">' +
+          (left ? left + ' of ' + tiles.length + ' still to go' : 'All ' + tiles.length + ' played') +
+        '</span>' +
+      '</div>' +
+      V.boardHTML(snap, { big: true });
+    return;
+  }
   if ((snap.phase === 'puzzle' || snap.phase === 'pzresult') && snap.pz) {
     const g = (Q.Puzzles.GAMES.filter(x => x.id === snap.pz.game)[0] || {});
     const solved = (snap.pz.board || []).length;

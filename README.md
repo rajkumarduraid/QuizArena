@@ -53,6 +53,7 @@ host can pop it into a second window from the lobby.
 | **Picture rounds** | Attach an image to any question — it appears above the answers on every screen |
 | **Locked questions** | Players can't select, copy or drag the question text off their screen |
 | **Puzzle breaks** | Set Zip, Wend, Patches or Mini Sudoku for the room and rank everyone by solve time |
+| **Pick-a-number board** | Put the rounds behind numbered tiles on the big screen and let the room choose |
 
 Scoring is configurable: how much speed is worth, a bonus for the fastest
 correct answer, a streak bonus, and an optional penalty for wrong answers.
@@ -148,6 +149,30 @@ A few things worth knowing:
   a picture or export the quiz if that happens.
 - The image is sent once when its question opens, not with every update.
   Anyone who joins mid-question, or reconnects, asks for it and gets it.
+
+---
+
+## The pick-a-number board
+
+Turn on **Rules & access → Pick-a-number board** and the quiz stops running in a
+fixed order. Instead the big screen fills with numbered tiles, one per round.
+Someone in the room calls out a number, you tap it, and whatever is behind it
+opens and plays exactly as it normally would. Afterwards the scoreboard leads
+back to the board for the next pick.
+
+**The number tells you nothing about the round.** The tiles are shuffled against
+the running order when the room opens, and the mapping never leaves the host's
+machine — so tile 7 is not round 7, and it is different every game. The only
+thing a tile gives away is what it is worth, which is the part worth knowing.
+
+A tile that has been played is struck through and names whoever took it, so the
+room can see at a glance what is left. When the last one is gone the board
+offers the final results instead.
+
+It works with everything else: picture questions, puzzle rounds and plain
+questions can all sit behind a number. The board shows on the projector
+dashboard and on players' phones too, read-only, so everyone can follow which
+numbers are still live — only the host can actually pick one.
 
 ---
 

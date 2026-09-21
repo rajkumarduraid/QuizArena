@@ -283,6 +283,23 @@ function renderPlayer() {
     return;
   }
 
+  if (snap.phase === 'board') {
+    const tiles = snap.board || [];
+    const left = tiles.filter(t => !t.done).length;
+    const key2 = 'board:' + snap.picked;
+    if (P.renderKey === key2) return;
+    P.renderKey = key2; P.ring = null;
+    body.innerHTML =
+      '<div class="verdict" style="padding:20px 16px">' +
+        '<span class="em">' + ico('grid') + '</span>' +
+        '<h2>Pick a number</h2>' +
+        '<p class="dim waitdots" style="font-size:14px">Someone in the room is choosing</p>' +
+        '<span class="pill">' + (left ? left + ' of ' + tiles.length + ' left' : 'all played') + '</span>' +
+      '</div>' +
+      V.boardHTML(snap, {});
+    return;
+  }
+
   if (snap.phase === 'question') {
     const chosen = P.picked[round];
     const alreadyIn = chosen == null && m && m.hasAnswered;
@@ -632,7 +649,8 @@ function dashStatus() {
   const ph = $('#dash-phase');
   if (ph && D.snap) {
     const map = { lobby: 'Lobby', question: 'Question in play', reveal: 'Answer revealed',
-                  pzresult: 'Puzzle result', scores: 'Scoreboard', final: 'Final results' };
+                  board: 'Pick a number', pzresult: 'Puzzle result', scores: 'Scoreboard',
+                  final: 'Final results' };
     /* a puzzle built into the quiz is a round; one dropped in mid-session is a
        break, and the room should be told which it is looking at */
     map.puzzle = (D.snap.pz && D.snap.pz.planned) ? 'Puzzle round' : 'Puzzle break';
@@ -690,6 +708,21 @@ function renderDash() {
   }
 
   D.ring = null;
+  if (snap.phase === 'board') {
+    const tiles = snap.board || [];
+    const left = tiles.filter(t => !t.done).length;
+    main.innerHTML =
+      '<div class="center" style="margin-bottom:20px">' +
+        '<p class="dim" style="letter-spacing:.2em;text-transform:uppercase;font-size:12px;font-weight:750">' +
+          esc(snap.title) + '</p>' +
+        '<h1 style="font-size:clamp(30px,5.5vw,52px)">Pick a number</h1>' +
+        '<span class="pill accent" style="margin-top:12px">' +
+          (left ? left + ' of ' + tiles.length + ' still to go' : 'All ' + tiles.length + ' played') +
+        '</span>' +
+      '</div>' +
+      V.boardHTML(snap, { big: true });
+    return;
+  }
   if ((snap.phase === 'puzzle' || snap.phase === 'pzresult') && snap.pz) {
     const g = (Q.Puzzles.GAMES.filter(x => x.id === snap.pz.game)[0] || {});
     const solved = (snap.pz.board || []).length;

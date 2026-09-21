@@ -770,6 +770,36 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 .sud-pad button.clear{font-size:14px; font-family:var(--sans); color:var(--muted)}
 .sud-pad button.spent{opacity:.34}
 
+/* ---- pick-a-number board ----
+   Built for the far end of a room: the numeral carries the tile, everything
+   else is a whisper. A played tile stays in place so the grid never reflows
+   under the person reading it out. */
+.pick-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(88px,1fr)); gap:11px}
+/* On a projector the tiles should fill the wall, so the column count comes
+   from how many there are rather than from a minimum width that leaves the
+   bottom half of the screen empty. */
+.pick-grid.big{grid-template-columns:repeat(var(--cols,4),minmax(0,1fr)); gap:clamp(10px,1.4vw,20px);
+  width:min(100%,min(1180px,calc((100dvh - 250px) * var(--cols,4) / var(--rows,3)))); margin-inline:auto}
+.pick-tile{aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:5px; padding:6px; border-radius:var(--r-l); border:1px solid var(--brand-line); color:var(--ink);
+  background:linear-gradient(168deg,#fff,var(--brand-soft)); box-shadow:var(--sh-1); font:inherit;
+  transition:transform .2s var(--spring), box-shadow .2s var(--ease), border-color .2s var(--ease)}
+.pick-tile .n{font-family:var(--display); font-weight:var(--dw); line-height:1; color:var(--brand);
+  font-size:clamp(26px,4.5vw,40px); font-variant-numeric:tabular-nums}
+.pick-grid.big .pick-tile .n{font-size:clamp(38px,7vw,74px)}
+.pick-tile .sub{font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums;
+  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pick-grid.big .pick-tile .sub{font-size:13px}
+.pick-grid.live .pick-tile:not(.done){cursor:pointer}
+.pick-grid.live .pick-tile:not(.done):hover{transform:translateY(-5px) scale(1.04);
+  box-shadow:var(--sh-3); border-color:var(--brand)}
+.pick-grid.live .pick-tile:not(.done):active{transform:translateY(-1px) scale(.99)}
+.pick-tile.done{background:var(--surface-2); border-color:var(--line); box-shadow:none}
+.pick-tile.done .n{color:var(--line-2); text-decoration:line-through}
+.pick-tile.done .sub{color:var(--faint)}
+.pick-tile.just{animation:tile-pop .5s var(--spring) both}
+@keyframes tile-pop{from{transform:scale(.86);opacity:.2}to{transform:scale(1);opacity:1}}
+
 /* ---- race strip, shown when a host is running the puzzle live ---- */
 .pz-race{width:min(600px,100%); display:flex; flex-direction:column; gap:8px; padding:13px 15px;
   border-radius:var(--r-m); border:1px solid var(--brand-line); background:var(--brand-soft)}

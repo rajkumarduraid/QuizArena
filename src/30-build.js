@@ -54,6 +54,7 @@ function defaultConfig() {
     speedW: 0.5, fastBonus: 100, streakBonus: 50, wrongPenalty: 0,
     defTime: 20, defPoints: 1000,
     pinOn: false, pin: '', lateJoin: true, showPlayersLb: true, shuffle: false, noCopy: true,
+    pickBoard: false,
     netMode: 'online', sound: true
   };
 }
@@ -123,6 +124,7 @@ function normaliseConfig(raw) {
     showPlayersLb: raw.showPlayersLb !== false,
     shuffle: !!raw.shuffle,
     noCopy: raw.noCopy !== false,
+    pickBoard: !!raw.pickBoard,
     netMode: raw.netMode === 'local' ? 'local' : 'online',
     sound: raw.sound !== false
   });
@@ -547,6 +549,7 @@ function renderRules() {
   c('#pin-on', cfg.pinOn); c('#late-join', cfg.lateJoin);
   c('#show-players-lb', cfg.showPlayersLb); c('#shuffle-q', cfg.shuffle);
   c('#no-copy', cfg.noCopy);
+  c('#pick-board', cfg.pickBoard);
   c('#sound-on', cfg.sound);
   $('#pin-field').classList.toggle('hide', !cfg.pinOn);
   const nm = document.querySelector('input[name=netmode][value="' + cfg.netMode + '"]'); if (nm) nm.checked = true;
@@ -570,6 +573,7 @@ function wireRules() {
   $('#show-players-lb').onchange = e => { cfg.showPlayersLb = e.target.checked; save(); };
   $('#shuffle-q').onchange = e => { cfg.shuffle = e.target.checked; save(); };
   $('#no-copy').onchange = e => { cfg.noCopy = e.target.checked; save(); };
+  $('#pick-board').onchange = e => { cfg.pickBoard = e.target.checked; save(); };
   $('#sound-on').onchange = e => { cfg.sound = e.target.checked; Q.Sound.enabled = cfg.sound; save(); };
   $$('input[name=netmode]').forEach(r => r.onchange = () => { cfg.netMode = r.value; save(); });
 }

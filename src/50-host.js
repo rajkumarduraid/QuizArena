@@ -28,11 +28,22 @@ function newGame(cfg) {
       const t = order[i]; order[i] = order[j]; order[j] = t;
     }
   }
+  /* With a pick-a-number board the tiles are shuffled independently of the
+     play order, so tile 7 is not round 7 and nothing is guessable from it. */
+  let board = null;
+  if (cfg.pickBoard) {
+    board = order.map((_, i) => i);
+    for (let i = board.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = board[i]; board[i] = board[j]; board[j] = t;
+    }
+  }
   return {
     cfg: JSON.parse(JSON.stringify(cfg)),
     code: roomCode(),
     phase: 'lobby',
     order, qi: -1,
+    board, picks: [], wins: Object.create(null),
     players: Object.create(null),
     cur: null,
     history: [],
@@ -149,6 +160,8 @@ function snapshot() {
     lateJoin: G.cfg.lateJoin,
     showPlayersLb: G.cfg.showPlayersLb,
     noCopy: G.cfg.noCopy,
+    board: boardTiles(),
+    picked: G.picks.length,
     pz: G.pz ? { game: G.pz.game, level: G.pz.level, number: G.pz.number,
                  board: pzBoard(), scored: !!G.pz.scored, planned: !!G.pz.planned,
                  points: G.pz.points,
@@ -355,8 +368,11 @@ function handleAnswer(m) {
 /* ----------------------------------------------------------- phase moves */
 function goLobby() { G.phase = 'lobby'; bcast(true); renderLobby(); }
 
-function askQuestion() {
-  G.qi++;
+/* The board and the plain running order both land here: one names the round
+   it wants, the other just takes the next one. */
+function askQuestion(orderIdx) {
+  if (orderIdx == null) G.qi++; else G.qi = orderIdx;
+  if (G.qi >= 0 && G.picks.indexOf(G.qi) < 0) G.picks.push(G.qi);
   const q = curQ();
   if (!q) { finish(); return; }
   if (q.kind === 'pz') {
@@ -429,6 +445,7 @@ function reveal() {
                    avatar: G.players[pid].avatar || 0, ms: ans[pid].ms }))
     .sort((a, b) => a.ms - b.ms);
 
+  if (fastest) G.wins[G.qi] = G.players[fastest.pid].name;
   G.history.push({
     qid: q.id, qn: G.qi + 1, text: q.text, correct: q.correct, options: q.options.slice(),
     dist, answered: Object.keys(ans).length, eligible: connectedArr().length,
@@ -452,6 +469,34 @@ function reveal() {
 }
 
 function showScores() { G.phase = 'scores'; bcast(true); lastStageKey = ''; renderStage(); }
+
+/* ------------------------------------------------- pick-a-number board */
+const allPlayed = () => !!G && G.picks.length >= G.order.length;
+
+function boardTiles() {
+  if (!G || !G.board) return null;
+  return G.board.map((oi, k) => {
+    const q = G.cfg.questions[G.order[oi]];
+    return { n: k + 1, points: q.points, done: G.picks.indexOf(oi) >= 0, by: G.wins[oi] || null };
+  });
+}
+
+function showBoard() {
+  if (!G || !G.board) return;
+  G.phase = 'board';
+  G.cur = null;
+  bcast(true);
+  lastStageKey = '';
+  showScreen('s-stage');
+  renderStage();
+}
+
+function pickTile(n) {
+  if (!G || !G.board || G.phase !== 'board') return;
+  const oi = G.board[Number(n) - 1];
+  if (oi == null || G.picks.indexOf(oi) >= 0) return;
+  askQuestion(oi);
+}
 
 /* ------------------------------------------------------------ puzzle round */
 /* A puzzle break drops into the room between questions. Only the game, level
@@ -530,6 +575,7 @@ function scorePuzzle() {
   const board = pzBoard();
   playersArr().forEach(p => { p.lastGain = null; p.lastMs = null; p.lastRight = null; });
   if (!board.length) return;
+  if (G.pz.planned) G.wins[G.qi] = board[0].name;
   const best = board[0].ms || 1;
   const w = G.cfg.speedW, base = G.pz.points == null ? (G.cfg.defPoints || 1000) : G.pz.points;
   board.forEach((row, i) => {
@@ -818,9 +864,15 @@ function stageControls() {
   } else if (p === 'reveal') {
     html = '<button class="btn primary" data-c="scores">Scoreboard' + ico('arrow-right') + '</button>';
   } else if (p === 'scores') {
-    html = G.qi >= G.order.length - 1
+    html = (G.board ? allPlayed() : G.qi >= G.order.length - 1)
       ? '<button class="btn go" data-c="finish">' + ico('flag') + 'Final results</button>'
-      : '<button class="btn go" data-c="next">Next question' + ico('arrow-right') + '</button>';
+      : G.board
+        ? '<button class="btn go" data-c="board">' + ico('grid') + 'Back to the board</button>'
+        : '<button class="btn go" data-c="next">Next question' + ico('arrow-right') + '</button>';
+  } else if (p === 'board') {
+    html = allPlayed()
+      ? '<button class="btn go" data-c="finish">' + ico('flag') + 'Final results</button>'
+      : '';
   } else if (p === 'puzzle') {
     html = '<button class="btn primary" data-c="pzend">' + ico('flag') + 'End puzzle &amp; score it</button>';
   } else if (p === 'pzresult') {
@@ -839,9 +891,13 @@ function stageControls() {
 function renderStage() {
   if (!G) return;
   const onPuzzle = G.phase === 'puzzle' || G.phase === 'pzresult';
-  $('#stage-progress').textContent = onPuzzle
-    ? (G.pz && G.pz.planned ? 'Puzzle · round ' + (G.qi + 1) + ' / ' + G.order.length : 'Puzzle break')
-    : 'Question ' + (G.qi + 1) + ' / ' + G.order.length;
+  /* With a board the rounds come out of order, so counting them off is the
+     only honest progress there is. */
+  const at = G.board ? G.picks.length : G.qi + 1;
+  $('#stage-progress').textContent =
+    G.phase === 'board' ? 'The board · ' + G.picks.length + ' / ' + G.order.length + ' played'
+    : onPuzzle ? (G.pz && G.pz.planned ? 'Puzzle · round ' + at + ' / ' + G.order.length : 'Puzzle break')
+    : (G.board ? 'Round ' : 'Question ') + at + ' / ' + G.order.length;
   $('#stage-code').textContent = 'Code ' + G.code;
   stageControls();
 
@@ -875,6 +931,22 @@ function renderStage() {
 
   ringEl = null;
   lastStageKey = key;
+
+  if (G.phase === 'board') {
+    const left = G.order.length - G.picks.length;
+    main.innerHTML =
+      '<div class="center" style="margin-bottom:18px">' +
+        '<h2 style="font-size:clamp(25px,4vw,40px)">Pick a number</h2>' +
+        '<p class="dim" style="margin-top:7px;font-size:15px">' +
+          (left ? 'Let someone in the room call one out, then tap it.'
+                : 'Every number has been played.') + '</p>' +
+        '<span class="pill accent" style="margin-top:11px">' +
+          (left ? left + ' of ' + G.order.length + ' still to go' : 'All ' + G.order.length + ' played') +
+        '</span>' +
+      '</div>' +
+      V.boardHTML(snap, { live: left > 0, big: true });
+    return;
+  }
 
   if (G.phase === 'puzzle' || G.phase === 'pzresult') {
     const g = (Q.Puzzles.GAMES.filter(x => x.id === G.pz.game)[0] || {});
@@ -1105,8 +1177,13 @@ function initHost() {
     if (!playersArr().length) return;
     G.startedAt = now();
     Sound.unlock();
-    askQuestion();
+    if (G.board) showBoard(); else askQuestion();
   };
+
+  $('#stage-main').addEventListener('click', e2 => {
+    const t = e2.target.closest('[data-tile]');
+    if (t) pickTile(t.dataset.tile);
+  });
 
   $('#lobby-players').addEventListener('click', e => {
     const chip = e.target.closest('[data-p]'); if (!chip) return;
@@ -1130,6 +1207,7 @@ function initHost() {
     else if (c === 'puzzle') askPuzzle();
     else if (c === 'pzend') endPuzzle();
     else if (c === 'pznext') afterPuzzle();
+    else if (c === 'board') showBoard();
   });
 
   $('#lobby-puzzle').onclick = askPuzzle;
