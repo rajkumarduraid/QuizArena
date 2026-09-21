@@ -161,13 +161,35 @@ projector, and a room that calls things out while you click. It runs entirely
 in the browser, so it works from a downloaded file on a locked-down laptop with
 no network at all.
 
+### Two windows
+
+Press **Open the screen** and you get a second window to drag onto the
+projector. From then on there are two views of the same thing:
+
+| | |
+|---|---|
+| **The room's window** | The question, the options, and the right/wrong animation. No toolbar, no buttons, bigger type. Nothing to click and nothing to give the answer away. |
+| **Your window** | The same content, plus every control: open a number, show the answer, go back, spin, start over. |
+
+They talk to each other three ways at once — the window handle, a
+BroadcastChannel and a storage mirror — because no single one of them is
+reliable from a page opened as a file. Only indices travel, never content:
+both windows read the same quiz out of this browser, so a picture never goes
+over and the messages stay tiny.
+
+If the pop-up is blocked, it hands you the address to open in a second window
+yourself. You can also run the whole thing in one window if you would rather —
+the controls simply sit under the question.
+
 Three tools share the screen, and you switch between them at the top.
 
 ### Pick a number
 
 The questions from your quiz go behind numbered tiles. Someone calls a number,
 you tap it, and the question fills the screen with its options. **Show the
-answer** marks the right one; **Back to the board** returns. A number you have
+answer** plays it out: the ones that are out shake off and grey down with a
+cross, then the right one lands with a ring and a tick. **Back to the board**
+returns. A number you have
 opened is struck off so you never repeat one.
 
 The board is shuffled against your question order when the quiz changes, so the

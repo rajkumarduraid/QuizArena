@@ -45,7 +45,7 @@ const { ck, done } = harness();
 
   await p.click('#show-reveal');
   await p.waitForSelector('.show-answers.revealed', { timeout: 6000 });
-  const right = await p.$eval('.show-ans.right span:last-child', e => e.textContent.trim());
+  const right = await p.$eval('.show-ans.right .txt', e => e.textContent.trim());
   const expect = await p.evaluate(t => {
     const q = window.QA.Build.getConfig().questions.filter(x => (x.text || '').trim() === t)[0];
     return q ? q.options[q.correct] : null;
@@ -160,6 +160,72 @@ const { ck, done } = harness();
   await p.waitForFunction(() => document.querySelectorAll('.reveal-tiles i.gone').length === 16, null, { timeout: 6000 });
   ck(/Mercury|Jupiter|Mars|Venus/.test(await p.textContent('#show-stage')),
      'showing the answer uncovers everything and names it');
+
+  console.log('\n— two windows: the room sees one thing, the host another —');
+  /* the tool is remembered, so ask for the board rather than assume it */
+  await p.evaluate(() => { location.hash = '#/show/numbers'; });
+  await p.reload();
+  await p.waitForSelector('#show-stage .pick-grid', { timeout: 10000 });
+
+  const [screen] = await Promise.all([
+    c.waitForEvent('page'),
+    p.click('#show-screen')
+  ]);
+  await screen.waitForLoadState('domcontentloaded');
+  await screen.waitForSelector('#s-screen.on', { timeout: 10000 });
+  ck(true, 'Open the screen brings up a second window');
+  await screen.waitForSelector('#screen-stage .pick-grid', { timeout: 12000 });
+  ck(true, 'and it picks up the board from the control window');
+
+  const liveButtons = await screen.$$eval('#screen-stage button:not([disabled])', e => e.length);
+  ck(liveButtons === 0, 'the room\u2019s window has nothing to click', liveButtons + ' enabled buttons');
+  /* other screens keep their own toolbars in the document, hidden — what
+     matters is that the one on show has none */
+  ck(!(await screen.$('#s-screen .topbar')), 'and no toolbar across the top');
+  ck(await screen.$eval('#s-screen', e => e.classList.contains('on')), 'the room sees only that window');
+  ck(!!(await p.$('#show-reveal, #show-stage [data-n]')), 'the host window keeps the controls');
+
+  /* the host opens a number; the room must follow */
+  await p.click('#show-stage [data-n="1"]');
+  await p.waitForSelector('.show-q', { timeout: 8000 });
+  const asked = (await p.textContent('#show-stage .show-text')).trim();
+  await screen.waitForSelector('#screen-stage .show-q', { timeout: 10000 });
+  ck((await screen.textContent('#screen-stage .show-text')).trim() === asked,
+     'tapping a number puts the same question on the room\u2019s screen');
+  ck(!(await screen.$('#screen-stage .show-actions')), 'without the buttons');
+  ck(!(await screen.$('#screen-stage .show-answers.revealed')), 'and without giving the answer away');
+
+  /* and the reveal, with its right/wrong animation */
+  await p.click('#show-reveal');
+  await screen.waitForSelector('#screen-stage .show-answers.revealed', { timeout: 10000 });
+  const marks = await screen.$$eval('#screen-stage .show-ans',
+    els => els.map(e => e.classList.contains('right') ? 'right' : e.classList.contains('wrong') ? 'wrong' : '-'));
+  ck(marks.filter(x => x === 'right').length === 1 && marks.indexOf('-') < 0,
+     'the room sees exactly one right and the rest wrong', marks.join(','));
+  const ticks = await screen.$$eval('#screen-stage .show-ans .ansmark', e => e.length);
+  ck(ticks === marks.length, 'every option is marked with a tick or a cross', String(ticks));
+  const anim = await screen.$eval('#screen-stage .show-ans.right',
+    e => getComputedStyle(e).animationName);
+  ck(anim === 'ans-win', 'and the right one animates in', anim);
+
+  await p.click('#show-next');
+  await screen.waitForSelector('#screen-stage .pick-grid', { timeout: 10000 });
+  ck(await screen.$eval('#screen-stage .pick-tile:nth-child(2)', e => /done/.test(e.className)),
+     'going back leaves the number struck off on both');
+
+  /* the wheel travels too */
+  await p.click('#show-tools [data-tool="wheel"]');
+  await screen.waitForSelector('#screen-stage #wheel-svg', { timeout: 10000 });
+  ck(true, 'switching tool switches the room\u2019s window with it');
+  await p.click('#wheel-spin');
+  await screen.waitForFunction(
+    () => (document.querySelector('#screen-stage .wheel-out').textContent || '').trim().length > 0,
+    null, { timeout: 15000 });
+  const seen = (await screen.textContent('#screen-stage .wheel-out')).trim();
+  const said = (await p.textContent('#show-stage .wheel-out')).trim();
+  ck(seen === said && seen.length > 0, 'both windows name the same winner', seen + ' / ' + said);
+
+  await screen.close();
 
   ck(errs.length === 0, 'no page errors', errs.slice(0, 3).join(' | '));
   await b.close();

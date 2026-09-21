@@ -844,7 +844,11 @@ function route() {
     return;
   }
   if (head === 'show') {
-    Q.Show.open((parts[1] || '').toLowerCase());
+    Q.Show.open('control', (parts[1] || '').toLowerCase());
+    return;
+  }
+  if (head === 'screen') {
+    Q.Show.open('screen');
     return;
   }
   if (head === 'puzzles') {

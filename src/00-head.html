@@ -829,10 +829,49 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   box-shadow:var(--sh-1); transition:opacity .3s var(--ease), transform .3s var(--ease)}
 .show-ans .shape{flex:none; display:inline-flex}
 .show-ans .shape svg{width:clamp(19px,2vw,28px); height:clamp(19px,2vw,28px)}
-.show-answers.revealed .show-ans{opacity:.34}
-.show-answers.revealed .show-ans.right{opacity:1; transform:scale(1.03);
-  box-shadow:0 0 0 4px #fff, 0 0 0 8px currentColor, var(--sh-3)}
+.show-ans .txt{flex:1; min-width:0}
+/* Named apart from .verdict, which is already the player's result card and
+   would drag its own padding and column layout in here. */
+.show-ans .ansmark{margin-left:auto; flex:none; border-radius:50%; display:grid; place-items:center;
+  width:clamp(27px,2.7vw,40px); height:clamp(27px,2.7vw,40px); background:rgba(255,255,255,.22)}
+.show-ans .ansmark .ico{width:64%; height:64%; stroke-width:2.6}
+
+/* The reveal is the moment the room is watching, so it is staged: the ones
+   that are out shake themselves off first, then the answer lands. */
+.show-answers.revealed .show-ans.wrong{animation:ans-out .5s var(--ease) both var(--d,0ms)}
+@keyframes ans-out{
+  0%{opacity:1}
+  26%{transform:translateX(-5px)}
+  44%{transform:translateX(5px)}
+  62%{transform:translateX(-2px)}
+  100%{opacity:.26; transform:scale(.96); filter:saturate(.3)}
+}
+.show-answers.revealed .show-ans.right{position:relative; z-index:2;
+  animation:ans-win .7s var(--spring) both .2s}
+@keyframes ans-win{
+  0%{transform:scale(1); box-shadow:var(--sh-1)}
+  48%{transform:scale(1.10)}
+  100%{transform:scale(1.045); box-shadow:0 0 0 5px #fff, 0 0 0 11px var(--c,var(--brand)), var(--sh-3)}
+}
+.show-answers.revealed .show-ans.right .ansmark{background:#fff; color:var(--ok);
+  animation:mark-pop .5s var(--spring) both .46s}
+@keyframes mark-pop{from{transform:scale(0) rotate(-40deg); opacity:0}
+                    to{transform:scale(1) rotate(0); opacity:1}}
 .show-actions{display:flex; gap:11px; flex-wrap:wrap; justify-content:center}
+
+/* ---- the audience's own window: the same thing, with the chrome gone and
+   everything one size up, because it is across the room ---- */
+.screen-stage{padding:clamp(18px,3vw,50px)}
+.screen-stage .show-head h1{font-size:clamp(30px,5.4vw,62px)}
+.screen-stage .show-head p{font-size:clamp(15px,1.8vw,22px)}
+.screen-stage .show-text{font-size:clamp(28px,5.2vw,66px)}
+.screen-stage .show-ans{font-size:clamp(18px,2.4vw,34px);
+  padding:clamp(14px,2vw,28px) clamp(16px,2.2vw,30px)}
+.screen-stage .show-img{max-height:min(46vh,540px)}
+.screen-stage .pick-grid.big{width:min(100%,min(1400px,calc((100dvh - 190px) * var(--cols,4) / var(--rows,3))))}
+.screen-stage .pick-grid.big .pick-tile .n{font-size:clamp(44px,8vw,104px)}
+.screen-stage .wheel-hold{width:min(66vh,min(680px,88vw))}
+.screen-stage .wheel-out{font-size:clamp(26px,4.4vw,56px)}
 
 /* ---- the wheel ---- */
 .wheel-wrap{display:flex; flex-direction:column; align-items:center; gap:clamp(12px,2vw,22px)}
