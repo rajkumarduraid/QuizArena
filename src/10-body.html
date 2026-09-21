@@ -1,0 +1,490 @@
+<canvas id="confetti" aria-hidden="true"></canvas>
+<div class="toast-host" id="toasts" aria-live="polite"></div>
+
+<!-- ============================ HOME ============================ -->
+<section class="screen on" id="s-home">
+  <header class="topbar no-print">
+    <div class="wrap topbar-in">
+      <div class="brand" data-mark>Quiz Arena</div>
+      <span class="pill" id="home-net-pill" hidden></span>
+      <div class="grow"></div>
+      <button class="btn ghost sm" id="btn-how">How it works</button>
+    </div>
+  </header>
+
+  <div class="wrap hero">
+    <span class="pill accent soft"><span class="dot live"></span> Live buzzer quiz · teams · millisecond timing</span>
+    <h1 style="margin-top:18px">Run a <span class="grad">live quiz</span><br>your room will actually feel.</h1>
+    <p class="lede">Build your questions ahead of time, open the room, and let people join from any device with a
+      6&#8209;character code &mdash; name only, no accounts. Every answer is timed to the millisecond, so the dashboard
+      can call out <b>who buzzed in first and exactly how long they took</b>.</p>
+
+    <div class="choice-grid">
+      <button class="choice" id="go-host">
+        <span class="badge" data-ico="sliders"></span>
+        <h3>Host a game</h3>
+        <p>Write questions, set up teams, then drive the room: start, reveal, skip, next. Live results the whole way.</p>
+      </button>
+      <button class="choice b" id="go-join">
+        <span class="badge" data-ico="phone"></span>
+        <h3>Join a game</h3>
+        <p>Got a code? Type it in, enter your name, pick your team. That&rsquo;s the whole sign&#8209;up.</p>
+      </button>
+      <button class="choice c" id="go-dash">
+        <span class="badge" data-ico="chart"></span>
+        <h3>Open dashboard</h3>
+        <p>A projector&#8209;friendly live scoreboard: team race, fastest responders, and the answer breakdown.</p>
+      </button>
+      <button class="choice d" id="go-puzzles">
+        <span class="badge" data-ico="puzzle"></span>
+        <h3>Play a puzzle</h3>
+        <p>Zip, Wend, Patches and Mini Sudoku &mdash; on your own against the clock, or set one as a race for the whole room.</p>
+      </button>
+    </div>
+
+    <div class="feat">
+      <div class="f"><b data-ico="stopwatch">Fastest&#8209;answer spotlight</b><span>Every question names the quickest correct player with their exact time, like <span class="mono">1.84s</span>.</span></div>
+      <div class="f"><b data-ico="users">Team scoring</b><span>Totals and per&#8209;player averages side by side, so an uneven split never hides the truth.</span></div>
+      <div class="f"><b data-ico="library">Build questions early</b><span>Quizzes are saved in this browser. Import and export as JSON, reuse them any time.</span></div>
+      <div class="f"><b data-ico="lock">Host controls</b><span>Optional host PIN, room lock, kick or move players, skip the timer, jump questions.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ BUILD ============================ -->
+<section class="screen" id="s-build">
+  <header class="topbar no-print">
+    <div class="wrap-wide topbar-in">
+      <button class="brand" id="build-home" data-mark title="Back to start">Quiz Arena</button>
+      <span class="pill">Host setup</span>
+      <div class="grow"></div>
+      <button class="btn ghost sm" id="btn-library" data-ico="library">My quizzes</button>
+      <button class="btn ghost sm" id="btn-import" data-ico="upload">Import</button>
+      <button class="btn ghost sm" id="btn-export" data-ico="download">Export</button>
+      <button class="btn primary sm" id="btn-open-room" data-ico-after="arrow-right">Open room</button>
+    </div>
+  </header>
+
+  <div class="wrap-wide" style="padding-block:18px 40px">
+    <div class="steps">
+      <div class="step now" data-tab="questions"><span class="n">1</span> Questions</div>
+      <span class="step-sep" data-ico="chevron-right"></span>
+      <div class="step" data-tab="teams"><span class="n">2</span> Teams</div>
+      <span class="step-sep" data-ico="chevron-right"></span>
+      <div class="step" data-tab="rules"><span class="n">3</span> Rules &amp; access</div>
+      <span class="step-sep" data-ico="chevron-right"></span>
+      <div class="step" data-tab="go"><span class="n">4</span> Open room</div>
+    </div>
+
+    <!-- Tab: questions -->
+    <div class="tabpane" data-pane="questions">
+      <div class="editor-grid">
+        <div class="col">
+          <div class="card">
+            <div class="field">
+              <label for="quiz-title">Quiz title</label>
+              <input class="inp" id="quiz-title" placeholder="Friday Trivia Showdown" maxlength="80">
+            </div>
+          </div>
+          <div class="qlist" id="qlist"></div>
+          <div class="row wrap-r">
+            <button class="btn primary" id="btn-add-q" data-ico="plus">Add question</button>
+            <button class="btn ghost" id="btn-add-tf" data-ico="plus">True / False</button>
+            <button class="btn ghost" id="btn-add-pz" data-ico="puzzle">Add a puzzle</button>
+            <button class="btn ghost" id="btn-sample">Load sample quiz</button>
+            <div class="grow"></div>
+            <button class="btn ghost sm danger" id="btn-clear-q">Clear all</button>
+          </div>
+        </div>
+
+        <aside class="col">
+          <div class="card">
+            <h3 style="font-size:16px">Quiz summary</h3>
+            <div class="stat-tiles" style="margin-top:12px">
+              <div class="tile"><div class="k" id="sum-q-label">Questions</div><div class="v" id="sum-q">0</div></div>
+              <div class="tile"><div class="k">Play time</div><div class="v" id="sum-t">0:00</div><div class="s">plus reveals</div></div>
+            </div>
+            <div id="sum-warn" style="margin-top:12px"></div>
+          </div>
+          <div class="card">
+            <h3 style="font-size:16px">Defaults for new questions</h3>
+            <div class="grid2" style="margin-top:12px">
+              <div class="field"><label for="def-time">Seconds</label><input class="inp" id="def-time" type="number" min="5" max="300" value="20"></div>
+              <div class="field"><label for="def-points">Points</label><input class="inp" id="def-points" type="number" min="0" max="5000" step="50" value="1000"></div>
+            </div>
+            <p class="faint" style="font-size:12.5px;margin-top:12px;line-height:1.5">Questions are saved in this browser as you type, so you can build a quiz days before the game.</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Tab: teams -->
+    <div class="tabpane hide" data-pane="teams">
+      <div class="editor-grid">
+        <div class="col">
+          <div class="card">
+            <div class="spread">
+              <div>
+                <h3 style="font-size:17px">Team play</h3>
+                <p class="dim" style="font-size:13.5px;margin-top:4px">Off means everyone plays solo &mdash; individual leaderboard only.</p>
+              </div>
+              <label class="switch"><input type="checkbox" id="teams-on" checked><span class="track"></span></label>
+            </div>
+          </div>
+          <div class="card" id="teams-card">
+            <div class="spread" style="margin-bottom:12px">
+              <h3 style="font-size:16px">Teams</h3>
+              <button class="btn ghost sm" id="btn-add-team" data-ico="plus">Add team</button>
+            </div>
+            <div class="col" id="team-rows"></div>
+          </div>
+        </div>
+        <aside class="col">
+          <div class="card">
+            <h3 style="font-size:16px">How players get a team</h3>
+            <div class="col" style="margin-top:12px">
+              <label class="row" style="align-items:flex-start;gap:10px;cursor:pointer">
+                <input type="radio" name="assign" value="choose" checked style="margin-top:3px">
+                <span><b style="font-size:14px">Players choose</b><br><span class="dim" style="font-size:13px">A team picker appears after they enter their name.</span></span>
+              </label>
+              <label class="row" style="align-items:flex-start;gap:10px;cursor:pointer">
+                <input type="radio" name="assign" value="auto" style="margin-top:3px">
+                <span><b style="font-size:14px">Auto&#8209;balance</b><br><span class="dim" style="font-size:13px">Each joiner lands on the smallest team. You can still move them in the lobby.</span></span>
+              </label>
+            </div>
+          </div>
+          <div class="card">
+            <h3 style="font-size:16px">Team score shown as</h3>
+            <div class="field" style="margin-top:12px">
+              <select class="inp" id="team-metric">
+                <option value="total">Total points (sum of members)</option>
+                <option value="avg">Average per player (fair for uneven teams)</option>
+              </select>
+            </div>
+            <p class="faint" style="font-size:12.5px;margin-top:10px;line-height:1.5">Both numbers always appear on the dashboard &mdash; this only picks which one ranks the teams.</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Tab: rules -->
+    <div class="tabpane hide" data-pane="rules">
+      <div class="editor-grid">
+        <div class="col">
+          <div class="card">
+            <h3 style="font-size:17px">Scoring</h3>
+            <div class="grid2" style="margin-top:14px">
+              <div class="field">
+                <label for="rule-speed">Speed weighting</label>
+                <select class="inp" id="rule-speed">
+                  <option value="0.5">Balanced &mdash; instant answer scores 2× a last&#8209;second one</option>
+                  <option value="0.8">Ruthless &mdash; speed is most of the score</option>
+                  <option value="0.25">Gentle &mdash; speed nudges the score</option>
+                  <option value="0">Off &mdash; flat points, speed only ranks the spotlight</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="rule-fastbonus">Fastest&#8209;correct bonus</label>
+                <input class="inp" id="rule-fastbonus" type="number" min="0" max="2000" step="25" value="100">
+              </div>
+              <div class="field">
+                <label for="rule-streak">Streak bonus per extra correct</label>
+                <input class="inp" id="rule-streak" type="number" min="0" max="1000" step="25" value="50">
+              </div>
+              <div class="field">
+                <label for="rule-wrong">Penalty for a wrong answer</label>
+                <input class="inp" id="rule-wrong" type="number" min="0" max="2000" step="25" value="0">
+              </div>
+            </div>
+            <p class="faint" style="font-size:12.5px;margin-top:14px;line-height:1.55" id="score-preview"></p>
+          </div>
+
+          <div class="card">
+            <h3 style="font-size:17px">Room access</h3>
+            <div class="col" style="margin-top:14px">
+              <div class="spread">
+                <div><b style="font-size:14px">Host PIN</b><p class="dim" style="font-size:13px;margin-top:3px">Asked for before host controls open on this device.</p></div>
+                <label class="switch"><input type="checkbox" id="pin-on"><span class="track"></span></label>
+              </div>
+              <div class="field hide" id="pin-field"><label for="host-pin">4&ndash;8 digits</label><input class="inp mono" id="host-pin" inputmode="numeric" maxlength="8" placeholder="1234" style="max-width:180px"></div>
+              <hr style="border:0;border-top:1px solid var(--line);margin:4px 0">
+              <div class="spread">
+                <div><b style="font-size:14px">Late joining</b><p class="dim" style="font-size:13px;margin-top:3px">Let people in after the first question has started.</p></div>
+                <label class="switch"><input type="checkbox" id="late-join" checked><span class="track"></span></label>
+              </div>
+              <div class="spread">
+                <div><b style="font-size:14px">Show live results to players</b><p class="dim" style="font-size:13px;margin-top:3px">Off keeps standings on the host screen only until the end.</p></div>
+                <label class="switch"><input type="checkbox" id="show-players-lb" checked><span class="track"></span></label>
+              </div>
+              <div class="spread">
+                <div><b style="font-size:14px">Shuffle question order</b><p class="dim" style="font-size:13px;margin-top:3px">Randomised once, when the room opens.</p></div>
+                <label class="switch"><input type="checkbox" id="shuffle-q"><span class="track"></span></label>
+              </div>
+              <div class="spread">
+                <div><b style="font-size:14px">Block copying on player devices</b><p class="dim" style="font-size:13px;margin-top:3px">Questions and answers can&rsquo;t be selected, copied or dragged. A deterrent, not a lock &mdash; a screenshot still works.</p></div>
+                <label class="switch"><input type="checkbox" id="no-copy" checked><span class="track"></span></label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="col">
+          <div class="card">
+            <h3 style="font-size:16px">Where players connect</h3>
+            <div class="col" style="margin-top:12px">
+              <label class="row" style="align-items:flex-start;gap:10px;cursor:pointer">
+                <input type="radio" name="netmode" value="online" checked style="margin-top:3px">
+                <span><b style="font-size:14px">Any device</b><br><span class="dim" style="font-size:13px">Phones and laptops join over the internet, peer&#8209;to&#8209;peer. Needs this page served over <span class="mono">https</span>.</span></span>
+              </label>
+              <label class="row" style="align-items:flex-start;gap:10px;cursor:pointer">
+                <input type="radio" name="netmode" value="local" style="margin-top:3px">
+                <span><b style="font-size:14px">This device only</b><br><span class="dim" style="font-size:13px">Extra browser tabs or windows on this computer. Always works, even offline.</span></span>
+              </label>
+            </div>
+            <p class="faint" style="font-size:12.5px;margin-top:12px;line-height:1.55">Tabs on this computer always stay in sync &mdash; handy for a second screen showing the dashboard.</p>
+          </div>
+          <div class="card">
+            <h3 style="font-size:16px">Sound</h3>
+            <div class="spread" style="margin-top:12px">
+              <span class="dim" style="font-size:13.5px">Ticks, buzzers and a win chime on the host screen.</span>
+              <label class="switch"><input type="checkbox" id="sound-on" checked><span class="track"></span></label>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Tab: go -->
+    <div class="tabpane hide" data-pane="go">
+      <div class="card" style="max-width:660px;margin-inline:auto;text-align:center">
+        <h2 style="font-size:clamp(24px,4vw,34px)">Ready when you are</h2>
+        <p class="dim" style="margin-top:10px;line-height:1.6" id="go-summary"></p>
+        <div id="go-problems" style="margin-top:16px"></div>
+        <button class="btn primary xl" id="btn-open-room-2" data-ico-after="arrow-right" style="margin-top:20px">Open the room</button>
+        <p class="faint" style="font-size:12.5px;margin-top:14px">A fresh 6&#8209;character code is generated. Nothing starts until you press Start.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ LOBBY ============================ -->
+<section class="screen" id="s-lobby">
+  <header class="topbar no-print">
+    <div class="wrap-wide topbar-in">
+      <div class="brand" data-mark>Quiz Arena</div>
+      <span class="pill" id="lobby-net"></span>
+      <div class="grow"></div>
+      <button class="btn ghost sm" id="lobby-back" data-ico="arrow-left">Edit quiz</button>
+      <button class="btn ghost sm" id="lobby-dash" data-ico="chart">Dashboard window</button>
+      <button class="btn ghost sm" id="lobby-puzzle" data-ico="puzzle">Puzzle break</button>
+      <button class="btn go" id="btn-start" data-ico="play">Start game</button>
+    </div>
+  </header>
+
+  <div class="wrap-wide" style="padding-block:20px 40px">
+    <div id="lobby-warn"></div>
+    <div class="lobby-grid">
+      <div class="col">
+        <div class="code-box">
+          <div class="lab">Game code</div>
+          <div class="code-big" id="room-code">------</div>
+          <div class="row" style="justify-content:center;gap:9px;margin-top:8px">
+            <button class="btn ghost sm" id="copy-code">Copy code</button>
+            <button class="btn ghost sm" id="copy-link">Copy join link</button>
+          </div>
+          <div class="qr-holder" id="qr-holder" hidden></div>
+          <p class="dim" style="font-size:12.5px;margin-top:12px;word-break:break-all" id="join-url"></p>
+        </div>
+        <div class="card">
+          <div class="spread">
+            <div><b style="font-size:14px">Room locked</b><p class="dim" style="font-size:13px;margin-top:3px">Nobody new can join while this is on.</p></div>
+            <label class="switch"><input type="checkbox" id="room-lock"><span class="track"></span></label>
+          </div>
+        </div>
+        <div class="card" id="lobby-teams-card">
+          <h3 style="font-size:16px;margin-bottom:12px">Team sizes</h3>
+          <div class="col" id="lobby-team-sizes"></div>
+          <button class="btn ghost sm block" id="btn-rebalance" data-ico="balance" style="margin-top:12px">Rebalance everyone</button>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card">
+          <div class="spread" style="margin-bottom:14px">
+            <h2 style="font-size:20px">Players in the room <span class="pill accent" id="player-count">0</span></h2>
+            <span class="dim" style="font-size:13px" id="lobby-hint">Waiting for the first player&hellip;</span>
+          </div>
+          <div class="player-grid" id="lobby-players"></div>
+          <div class="empty-state" id="lobby-empty">
+            Share the code <b id="lobby-empty-code">------</b> &mdash; players open this page, tap <b>Join a game</b>, and enter their name.
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:16px;margin-bottom:10px">Question run sheet</h3>
+          <div class="tbl-scroll" style="max-height:320px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>#</th><th>Question</th><th>Answer</th><th>Time</th><th>Points</th></tr></thead>
+            <tbody id="runsheet"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ HOST STAGE ============================ -->
+<section class="screen" id="s-stage">
+  <header class="topbar no-print">
+    <div class="wrap-wide topbar-in">
+      <span class="pill accent" id="stage-progress">Question 1 / 1</span>
+      <span class="pill" id="stage-net"></span>
+      <span class="pill" id="stage-code"></span>
+      <div class="grow"></div>
+      <div class="row" id="stage-controls"></div>
+    </div>
+  </header>
+
+  <div class="wrap-wide stage" id="stage-main"></div>
+</section>
+
+<!-- ============================ FINAL ============================ -->
+<section class="screen" id="s-final">
+  <header class="topbar no-print">
+    <div class="wrap-wide topbar-in">
+      <div class="brand" data-mark>Final results</div>
+      <div class="grow"></div>
+      <button class="btn ghost sm" id="btn-export-csv" data-ico="download">CSV</button>
+      <button class="btn ghost sm" id="btn-export-json" data-ico="download">JSON</button>
+      <button class="btn ghost sm" id="btn-print" data-ico="print">Print</button>
+      <button class="btn primary sm" id="btn-again" data-ico="refresh">New game</button>
+    </div>
+  </header>
+  <div class="wrap-wide" style="padding-block:22px 50px" id="final-main"></div>
+</section>
+
+<!-- ============================ JOIN ============================ -->
+<section class="screen" id="s-join">
+  <div class="wrap" style="max-width:520px;display:flex;flex-direction:column;justify-content:center;min-height:100dvh;padding-block:30px">
+    <button class="brand" id="join-home" data-mark style="margin-bottom:26px">Quiz Arena</button>
+
+    <div class="card" id="join-step-code">
+      <h2 style="font-size:26px">Enter the game code</h2>
+      <p class="dim" style="font-size:14px;margin-top:7px">Six characters, shown on the host&rsquo;s screen.</p>
+      <input class="inp mono" id="in-code" placeholder="ABC123" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false"
+             style="margin-top:16px;font-size:32px;text-align:center;letter-spacing:.3em;padding:16px 10px;font-weight:800">
+      <button class="btn primary block xl" id="btn-code-next" style="margin-top:14px">Continue</button>
+      <p id="join-err" class="center" style="color:var(--bad);font-size:13.5px;margin-top:12px;min-height:18px"></p>
+      <div id="join-hint" class="hide" style="margin-top:4px"></div>
+    </div>
+
+    <div class="card hide" id="join-step-name">
+      <div class="spread"><h2 style="font-size:26px">What&rsquo;s your name?</h2><span class="pill mono" id="join-code-pill"></span></div>
+      <p class="dim" style="font-size:14px;margin-top:7px">This is all we need &mdash; no account, no password.</p>
+      <input class="inp" id="in-name" placeholder="Your name" maxlength="18" autocomplete="off"
+             style="margin-top:16px;font-size:22px;text-align:center;padding:15px 10px;font-weight:700">
+
+      <div id="avatar-pick" style="margin-top:18px">
+        <div class="spread" style="margin-bottom:9px">
+          <label style="font-size:12px;font-weight:600;color:var(--muted)">Pick your avatar</label>
+          <span class="pill" id="avatar-status">Tap one to continue</span>
+        </div>
+        <div class="av-grid" id="avatar-grid" role="radiogroup" aria-label="Choose an avatar"></div>
+      </div>
+
+      <div id="team-pick" class="hide" style="margin-top:18px">
+        <label style="font-size:12.5px;font-weight:700;color:var(--ink-dim)">Pick your team</label>
+        <div class="player-grid" id="team-pick-list" style="margin-top:9px"></div>
+      </div>
+      <button class="btn go block xl" id="btn-join" data-ico-after="arrow-right" style="margin-top:16px">Join the game</button>
+      <p id="name-err" class="center" style="color:var(--bad);font-size:13.5px;margin-top:12px;min-height:18px"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PLAYER ============================ -->
+<section class="screen" id="s-play">
+  <div class="play-shell">
+    <div class="play-head">
+      <span class="pill" id="play-net"></span>
+      <b id="play-name" style="font-size:15px"></b>
+      <span id="play-team"></span>
+      <span class="me-score" id="play-score">0</span>
+    </div>
+    <div class="play-body" id="play-body"></div>
+  </div>
+</section>
+
+<!-- ============================ PUZZLE HUB ============================ -->
+<section class="screen" id="s-puzzles">
+  <header class="topbar no-print">
+    <div class="wrap topbar-in">
+      <button class="brand" id="pz-home" data-mark title="Back to start">Quiz Arena</button>
+      <span class="pill">Puzzles</span>
+      <div class="grow"></div>
+      <button class="btn ghost sm" id="pz-how" data-ico="bulb">How they work</button>
+    </div>
+  </header>
+
+  <div class="wrap" style="padding-block:26px 46px">
+    <span class="pill accent soft"><span class="dot live"></span> Four puzzles &middot; a fresh board every time &middot; your best time kept</span>
+    <h1 style="margin-top:16px">Sharpen up between <span class="grad">rounds</span>.</h1>
+    <p class="lede">Every board is generated fresh and checked before you see it, so there is always another one.
+      Play on your own against the clock &mdash; or open a room and set the same puzzle for everybody, and the
+      dashboard will rank the room by who cracked it fastest.</p>
+    <div class="pz-grid" id="pz-tiles"></div>
+  </div>
+</section>
+
+<!-- ============================ PUZZLE BOARD ============================ -->
+<section class="screen" id="s-puzzle">
+  <header class="topbar no-print">
+    <div class="wrap topbar-in">
+      <button class="brand" id="pzb-back" data-mark title="All puzzles">Quiz Arena</button>
+      <span class="pill" id="pzb-name"></span>
+      <div class="grow"></div>
+      <span class="pill mono" id="pzb-num"></span>
+    </div>
+  </header>
+
+  <div class="pz-shell">
+    <div class="pz-top">
+      <span class="pz-clock" id="pz-clock" data-ico="stopwatch"><span>0:00</span></span>
+      <span class="pill" id="pz-best" hidden></span>
+      <div class="grow"></div>
+      <div class="pz-levels" id="pz-levels"></div>
+      <button class="btn ghost sm" id="pz-undo" data-ico="undo">Undo</button>
+      <button class="btn ghost sm" id="pz-reset" data-ico="refresh">Reset</button>
+    </div>
+
+    <div id="pz-race"></div>
+    <div class="pz-board" id="pz-board"></div>
+    <div id="pz-extra"></div>
+    <div class="pz-note" id="pz-note"></div>
+    <div id="pz-finish"></div>
+    <p class="pz-rule" id="pz-rule"></p>
+
+    <div class="pz-top" id="pz-nav" style="justify-content:space-between;margin-top:4px">
+      <button class="btn ghost sm" id="pz-prev" data-ico="arrow-left">Previous</button>
+      <span class="grow"></span>
+      <button class="btn primary sm" id="pz-next" data-ico-after="arrow-right">Next puzzle</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ DASHBOARD ============================ -->
+<section class="screen" id="s-dash">
+  <header class="topbar no-print">
+    <div class="wrap-wide topbar-in">
+      <div class="brand" data-mark>Live dashboard</div>
+      <span class="pill" id="dash-net"></span>
+      <span class="pill mono" id="dash-code"></span>
+      <div class="grow"></div>
+      <span class="pill" id="dash-phase"></span>
+    </div>
+  </header>
+  <div class="wrap-wide" style="padding-block:18px 40px" id="dash-main"></div>
+</section>
+
+<!-- ============================ MODAL ============================ -->
+<input type="file" id="img-input" accept="image/*" hidden>
+
+<div class="modal-bg" id="modal-bg"><div class="modal" id="modal"></div></div>
