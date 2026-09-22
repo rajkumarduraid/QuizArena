@@ -859,6 +859,29 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
                     to{transform:scale(1) rotate(0); opacity:1}}
 .show-actions{display:flex; gap:11px; flex-wrap:wrap; justify-content:center}
 
+/* ---- a question with no choices on the wall ----
+   Nothing to read but the question, so it takes the room it needs; the answer
+   arrives on its own when the host calls for it. */
+.show-q.solo .show-text{font-size:clamp(30px,6.2vw,76px); max-width:18ch}
+.screen-stage .show-q.solo .show-text{font-size:clamp(34px,7vw,92px)}
+.answer-solo{display:flex; align-items:center; gap:clamp(12px,1.6vw,22px);
+  padding:clamp(14px,2vw,26px) clamp(20px,2.6vw,40px); border-radius:var(--r-xl);
+  background:linear-gradient(170deg,var(--ok-soft),#fff); border:2px solid var(--ok);
+  box-shadow:var(--sh-3); animation:answer-land .72s var(--spring) both .38s}
+#s-screen .answer-solo{background:linear-gradient(170deg,rgba(74,222,155,.22),rgba(74,222,155,.06));
+  border-color:var(--ok); box-shadow:0 0 0 6px rgba(74,222,155,.12), 0 22px 60px rgba(0,0,0,.45)}
+.answer-solo .lab{font-family:var(--mono); font-size:clamp(11px,1.1vw,14px); letter-spacing:.24em;
+  text-transform:uppercase; color:var(--muted)}
+.answer-solo .val{font-family:var(--display); font-weight:var(--dw);
+  font-size:clamp(26px,4.4vw,58px); line-height:1.1; color:var(--ink)}
+.answer-solo .ansmark{width:clamp(30px,3vw,46px); height:clamp(30px,3vw,46px); flex:none;
+  border-radius:50%; display:grid; place-items:center; background:var(--ok); color:#fff;
+  animation:mark-pop .5s var(--spring) both .8s}
+.answer-solo .ansmark .ico{width:64%; height:64%; stroke-width:2.6}
+@keyframes answer-land{from{opacity:0; transform:translateY(34px) scale(.82)}
+                       58%{opacity:1; transform:translateY(0) scale(1.04)}
+                       to{opacity:1; transform:none}}
+
 /* ---- the audience's own window ----
    The host's window is a tool and stays on the app's daylight ground. This one
    is a stage at the end of a room, so it goes dark: colour reads louder, a
@@ -921,14 +944,44 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 .pick-tile.just-done .n{animation:strike .5s var(--ease) both}
 @keyframes strike{from{transform:scale(1.35); opacity:.2} to{transform:scale(1); opacity:1}}
 
-/* `fresh` is only on a question that has not been answered yet, so giving the
-   answer does not make the question itself fly in a second time */
-.show-q.fresh .qno{animation:rise .34s var(--ease) both}
-.show-q.fresh .show-text{animation:rise .46s var(--ease) both .06s}
-.show-q.fresh .show-img{animation:rise .5s var(--spring) both .04s}
-/* only on the way in — once revealed, the staging above owns these */
+/* ---- opening a number ----
+   The number the room called out arrives first and fills the wall, turns away,
+   and the question writes itself on behind it a word at a time — which is how
+   it is read out loud, and it gives the room a beat to look up. `fresh` is on
+   only before the answer is given, so revealing never replays any of it. */
+.show-q{position:relative}
+.q-open{position:absolute; inset:0; display:grid; place-items:center;
+  pointer-events:none; z-index:5; perspective:900px}
+.q-open .big-n{grid-area:1/1; font-family:var(--display); font-weight:var(--dw);
+  font-size:clamp(110px,24vw,290px); line-height:1; color:var(--brand);
+  text-shadow:0 0 70px rgba(109,75,255,.45);
+  animation:open-n 1.05s cubic-bezier(.2,.8,.24,1) both}
+@keyframes open-n{
+  0%{opacity:0; transform:scale(.24) rotateY(-100deg)}
+  22%{opacity:1; transform:scale(1) rotateY(0)}
+  46%{opacity:1; transform:scale(1.03) rotateY(0)}
+  100%{opacity:0; transform:scale(1.9) rotateY(82deg)}
+}
+.q-open .ring{grid-area:1/1; width:22vmin; height:22vmin; border-radius:50%;
+  border:3px solid var(--brand-2); animation:open-ring 1s var(--ease) both}
+.q-open .ring.two{animation-delay:.16s; border-color:var(--gold)}
+@keyframes open-ring{from{opacity:.85; transform:scale(.35)}
+                     to{opacity:0; transform:scale(4.6)}}
+
+.show-q.fresh .qno{animation:rise .4s var(--ease) both .52s}
+.show-q.fresh .show-img{animation:open-img .66s var(--spring) both .5s}
+@keyframes open-img{from{opacity:0; transform:scale(.88) translateY(18px)}
+                    to{opacity:1; transform:none}}
+.show-text .w{display:inline-block}
+.show-q.fresh .show-text .w{animation:word-in .54s var(--spring) both;
+  animation-delay:calc(600ms + var(--i,0) * 55ms)}
+@keyframes word-in{from{opacity:0; transform:translateY(30px) rotateX(-55deg); filter:blur(5px)}
+                   to{opacity:1; transform:none; filter:none}}
+/* only on the way in — once revealed, the staging above owns these.
+   `--start` is set from how long the question takes to arrive, so the options
+   never land on top of the last word. */
 .show-answers:not(.revealed) .show-ans{animation:deal-in .44s var(--spring) both;
-  animation-delay:calc(180ms + var(--d,0ms) * .55)}
+  animation-delay:calc(var(--start,180ms) + var(--d,0ms) * .55)}
 @keyframes deal-in{from{opacity:0; transform:translateY(20px) scale(.95)}
                    to{opacity:1; transform:none}}
 
@@ -1483,6 +1536,7 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
       <div class="grow"></div>
       <div class="pz-levels" id="show-tools"></div>
       <button class="btn ghost sm" id="show-edit" data-ico="sliders">Questions</button>
+      <button class="btn sm" id="show-choices">With choices</button>
       <button class="btn sm" id="show-sound">Sound on</button>
       <button class="btn primary sm" id="show-screen" data-ico="chart">Open the screen</button>
       <button class="btn ghost sm" id="show-full" data-ico="eye">Full screen</button>
@@ -8679,7 +8733,7 @@ const SH = {
   names: [],
   rot: 0, spinFrom: 0, spinning: false, winner: -1, spinAt: 0,
   pic: -1, gone: Object.create(null),
-  sound: true, just: 0, justPiece: -1,
+  sound: true, choices: true, just: 0, justPiece: -1,
   remote: null,
   lastKey: ''
 };
@@ -8721,7 +8775,7 @@ const Link = (function () {
 /* ------------------------------------------------------------- persistence */
 function store() {
   LS.set(KEY, { sig: SH.sig, order: SH.order, used: SH.used, names: SH.names,
-                tool: SH.tool, sound: SH.sound });
+                tool: SH.tool, sound: SH.sound, choices: SH.choices });
 }
 function load() {
   const qs = questions();
@@ -8729,6 +8783,7 @@ function load() {
   const saved = LS.get(KEY, null);
   SH.names = (saved && Array.isArray(saved.names)) ? saved.names : [];
   SH.sound = !saved || saved.sound !== false;
+  SH.choices = !saved || saved.choices !== false;
   if (saved && TOOLS.some(t => t.id === saved.tool)) SH.tool = saved.tool;
   if (saved && saved.sig === sig && Array.isArray(saved.order) && saved.order.length === qs.length) {
     SH.sig = sig; SH.order = saved.order.slice();
@@ -8768,6 +8823,7 @@ function viewNow() {
     at: SH.at,
     tileNo: SH.at >= 0 ? SH.order.indexOf(SH.at) + 1 : 0,
     shown: SH.shown,
+    choices: SH.choices,
     just: SH.just, justPiece: SH.justPiece,
     wheel: { items: wheelNames(), rot: SH.rot, from: SH.spinFrom,
              winner: SH.winner, spinAt: SH.spinAt },
@@ -8794,6 +8850,7 @@ function open(role, tool) {
   $('#show-title').textContent = Q.Build.getConfig().title || 'Untitled quiz';
   paintTools();
   paintSound();
+  paintChoices();
   render();
 }
 
@@ -8803,6 +8860,17 @@ function paintSound() {
   b.classList.toggle('ghost', !SH.sound);
   b.innerHTML = Q.ico(SH.sound ? 'bolt' : 'signal-off') + (SH.sound ? 'Sound on' : 'Sound off');
   b.title = SH.sound ? 'Turn the sound off' : 'Turn the sound on';
+}
+
+function paintChoices() {
+  const b = $('#show-choices');
+  if (!b) return;
+  b.classList.toggle('ghost', !SH.choices);
+  b.innerHTML = Q.ico(SH.choices ? 'grid' : 'letters') +
+                (SH.choices ? 'With choices' : 'Question only');
+  b.title = SH.choices
+    ? 'Showing the options under each question'
+    : 'Showing the question on its own — the room answers out loud';
 }
 
 function paintTools() {
@@ -8892,6 +8960,7 @@ function paintNumbers(v, stage, live) {
       SH.shown = false; SH.just = 0;
       SH.used[SH.at] = 1;
       sfx('pick');
+      setTimeout(() => sfx('swish'), 330);
       store(); render();
     };
   });
@@ -8899,16 +8968,25 @@ function paintNumbers(v, stage, live) {
   if (again) again.onclick = startOver;
 }
 
+/* Splitting on spaces lets the line arrive a word at a time, which reads on a
+   wall the way a person says it rather than appearing all at once. */
+function wordsOf(text) {
+  const parts = String(text || '').split(/\s+/).filter(Boolean);
+  return parts.map((w, i) => '<span class="w" style="--i:' + i + '">' + esc(w) + '</span>').join(' ');
+}
+
 function paintQuestion(v, stage, live) {
   const q = questions()[v.at];
   if (!q) { emptyCard(stage, 'That question is no longer here', '', live); return; }
+  const fresh = !v.shown;
+  const words = String(q.text || '').split(/\s+/).filter(Boolean).length;
+  /* the options wait for the question to finish arriving */
+  const after = Math.min(1500, 640 + words * 55 + 240);
   const one = q.options.length <= 2 && q.options.join('').length > 40;
-  stage.innerHTML =
-    '<div class="show-q' + (v.shown ? '' : ' fresh') + '">' +
-      '<span class="qno">Number ' + v.tileNo + '</span>' +
-      (q.image ? '<img class="show-img" src="' + esc(q.image) + '" alt="">' : '') +
-      '<h2 class="show-text">' + esc(q.text) + '</h2>' +
-      '<div class="show-answers' + (one ? ' one-col' : '') + (v.shown ? ' revealed' : '') + '">' +
+
+  const answers = v.choices
+    ? '<div class="show-answers' + (one ? ' one-col' : '') + (v.shown ? ' revealed' : '') +
+        '" style="--start:' + after + 'ms">' +
         q.options.map((o, i) => {
           const right = i === q.correct;
           return '<div class="show-ans' + (v.shown ? (right ? ' right' : ' wrong') : '') +
@@ -8919,7 +8997,25 @@ function paintQuestion(v, stage, live) {
             (v.shown ? '<span class="ansmark">' + ico(right ? 'check' : 'cross') + '</span>' : '') +
           '</div>';
         }).join('') +
-      '</div>' +
+      '</div>'
+    /* no options on the wall: the room answers out loud and the answer lands
+       on its own when the host calls for it */
+    : (v.shown
+        ? '<div class="answer-solo"><span class="lab">Answer</span>' +
+          '<b class="val">' + esc(q.options[q.correct]) + '</b>' +
+          '<span class="ansmark">' + ico('check') + '</span></div>'
+        : '');
+
+  stage.innerHTML =
+    '<div class="show-q' + (fresh ? ' fresh' : '') + (v.choices ? '' : ' solo') + '">' +
+      (fresh
+        ? '<div class="q-open" aria-hidden="true"><span class="ring"></span>' +
+          '<span class="ring two"></span><span class="big-n">' + v.tileNo + '</span></div>'
+        : '') +
+      '<span class="qno">Number ' + v.tileNo + '</span>' +
+      (q.image ? '<img class="show-img" src="' + esc(q.image) + '" alt="">' : '') +
+      '<h2 class="show-text">' + (fresh ? wordsOf(q.text) : esc(q.text)) + '</h2>' +
+      answers +
       (live
         ? '<div class="show-actions">' +
             '<button class="btn ghost" id="show-back">' + ico('arrow-left') + 'Back to the board</button>' +
@@ -9225,6 +9321,11 @@ function init() {
   $('#show-edit').onclick = () => { location.hash = '#/host'; };
   $('#show-reset').onclick = startOver;
   $('#show-screen').onclick = openScreen;
+  $('#show-choices').onclick = () => {
+    SH.choices = !SH.choices;
+    sfx('swish');
+    store(); paintChoices(); render();
+  };
   $('#show-sound').onclick = () => {
     SH.sound = !SH.sound;
     Q.Sound.enabled = SH.sound;

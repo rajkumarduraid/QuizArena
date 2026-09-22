@@ -197,8 +197,26 @@ number gives nothing away — and it is remembered, so a stray reload in the
 middle of a session does not hand out the same question twice. **Start over**
 reshuffles and clears.
 
+**Opening a number is the moment the room is watching**, so it is staged: the
+number they called out arrives first and fills the wall inside a burst, turns
+away, and the question writes itself on a word at a time — the way it is read
+out loud. The options wait for the last word before dealing in.
+
 Keys for when you have a hand on a clicker: <kbd>Space</kbd> shows the answer
 then moves on, <kbd>Esc</kbd> goes back to the board.
+
+### With choices, or the question on its own
+
+**With choices** puts the four options under the question and *Show the answer*
+marks the right one.
+
+**Question only** takes them away. Just the question, as large as the wall will
+carry, and the room answers out loud. *Show the answer* then lands it on its own
+in a green banner rather than highlighting anything. Use it for open questions,
+for anything where the options would give it away, or when you simply want the
+room talking rather than reading.
+
+The toggle is in the toolbar and is remembered.
 
 ### Sound
 

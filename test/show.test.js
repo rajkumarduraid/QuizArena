@@ -278,6 +278,77 @@ const { ck, done } = harness();
   await p.click('#show-sound');
   ck(/Sound on/.test(await p.textContent('#show-sound')), 'and back on again');
 
+  console.log('\n— opening a number —');
+  await p.evaluate(() => { location.hash = '#/show/numbers'; });
+  await p.reload();
+  await p.waitForSelector('#show-stage .pick-grid', { timeout: 10000 });
+  await p.click('#show-stage [data-n="4"]');
+  await p.waitForSelector('.show-q.fresh', { timeout: 8000 });
+  ck(!!(await p.$('.q-open .big-n')), 'the number the room called out arrives first');
+  ck((await p.textContent('.q-open .big-n')).trim() === '5', 'and it is the number they called', await p.textContent('.q-open .big-n'));
+  ck((await p.$$('.q-open .ring')).length === 2, 'with the burst behind it');
+
+  const wordSpans = await p.$$eval('.show-text .w', els => els.map(e => e.textContent));
+  const qWords = (await p.$eval('.show-text', e => e.textContent)).trim().split(/\s+/);
+  ck(wordSpans.length === qWords.length && wordSpans.length > 2,
+     'the question is split so it can arrive a word at a time', wordSpans.length + ' words');
+  const delays = await p.$$eval('.show-text .w', els => els.map(e => getComputedStyle(e).animationDelay));
+  ck(delays.length > 2 && delays[0] !== delays[1] &&
+     parseFloat(delays[1]) > parseFloat(delays[0]), 'each one a beat after the last',
+     delays.slice(0, 3).join(', '));
+  const optStart = await p.$eval('.show-answers', e => parseFloat(getComputedStyle(e).getPropertyValue('--start')));
+  ck(optStart > parseFloat(delays[delays.length - 1]) * 1000,
+     'and the options wait for the last word', optStart + 'ms vs last word ' + delays[delays.length - 1]);
+
+  await p.click('#show-reveal');
+  await p.waitForSelector('.show-answers.revealed', { timeout: 6000 });
+  ck(!(await p.$('.q-open')), 'giving the answer does not play the opening again');
+  ck(!(await p.$('.show-text .w')), 'nor re-write the question');
+
+  console.log('\n— a question on its own, with no choices —');
+  await p.click('#show-back');
+  await p.waitForSelector('#show-stage .pick-grid', { timeout: 6000 });
+  ck(/With choices/.test(await p.textContent('#show-choices')), 'choices are shown by default');
+  await p.click('#show-choices');
+  ck(/Question only/.test(await p.textContent('#show-choices')), 'and can be turned off');
+
+  const [scr3] = await Promise.all([c.waitForEvent('page'), p.click('#show-screen')]);
+  await scr3.waitForLoadState('domcontentloaded');
+  await scr3.waitForSelector('#screen-stage .pick-grid', { timeout: 12000 });
+
+  /* earlier sections have used some numbers, and the board remembers — so take
+     whichever is still open rather than a fixed one */
+  await p.click('#show-stage [data-n]');
+  await p.waitForSelector('.show-q.solo', { timeout: 8000 });
+  ck((await p.$$('.show-ans')).length === 0, 'the question comes up with nothing under it');
+  ck(!!(await p.$('.q-open .big-n')), 'and still opens with its number');
+  await scr3.waitForSelector('#screen-stage .show-q.solo', { timeout: 10000 });
+  ck((await scr3.$$('#screen-stage .show-ans')).length === 0, 'the room sees no choices either');
+  const solo = await scr3.$eval('#screen-stage .show-q.solo .show-text',
+    e => parseFloat(getComputedStyle(e).fontSize));
+  ck(solo > 40, 'so the question takes the room it needs', Math.round(solo) + 'px');
+
+  await p.click('#show-reveal');
+  await p.waitForSelector('.answer-solo', { timeout: 8000 });
+  const soloAns = (await p.textContent('.answer-solo .val')).trim();
+  const soloExpect = await p.evaluate(() => {
+    const S = window.QA.Show.state;
+    const qs = window.QA.Build.getConfig().questions.filter(q => q.kind !== 'pz');
+    const q = qs[S.at];
+    return q ? q.options[q.correct] : null;
+  });
+  ck(soloAns === soloExpect, 'the answer lands on its own, and it is the right one',
+     soloAns + ' vs ' + soloExpect);
+  await scr3.waitForSelector('#screen-stage .answer-solo', { timeout: 10000 });
+  ck((await scr3.textContent('#screen-stage .answer-solo .val')).trim() === soloExpect,
+     'and the room gets the same');
+  await scr3.close();
+
+  await p.reload();
+  await p.waitForSelector('#s-show.on', { timeout: 10000 });
+  ck(/Question only/.test(await p.textContent('#show-choices')), 'the choice sticks next time');
+  await p.click('#show-choices');
+
   ck(errs.length === 0, 'no page errors', errs.slice(0, 3).join(' | '));
   await b.close();
   done();

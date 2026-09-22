@@ -45,7 +45,7 @@ const SH = {
   names: [],
   rot: 0, spinFrom: 0, spinning: false, winner: -1, spinAt: 0,
   pic: -1, gone: Object.create(null),
-  sound: true, just: 0, justPiece: -1,
+  sound: true, choices: true, just: 0, justPiece: -1,
   remote: null,
   lastKey: ''
 };
@@ -87,7 +87,7 @@ const Link = (function () {
 /* ------------------------------------------------------------- persistence */
 function store() {
   LS.set(KEY, { sig: SH.sig, order: SH.order, used: SH.used, names: SH.names,
-                tool: SH.tool, sound: SH.sound });
+                tool: SH.tool, sound: SH.sound, choices: SH.choices });
 }
 function load() {
   const qs = questions();
@@ -95,6 +95,7 @@ function load() {
   const saved = LS.get(KEY, null);
   SH.names = (saved && Array.isArray(saved.names)) ? saved.names : [];
   SH.sound = !saved || saved.sound !== false;
+  SH.choices = !saved || saved.choices !== false;
   if (saved && TOOLS.some(t => t.id === saved.tool)) SH.tool = saved.tool;
   if (saved && saved.sig === sig && Array.isArray(saved.order) && saved.order.length === qs.length) {
     SH.sig = sig; SH.order = saved.order.slice();
@@ -134,6 +135,7 @@ function viewNow() {
     at: SH.at,
     tileNo: SH.at >= 0 ? SH.order.indexOf(SH.at) + 1 : 0,
     shown: SH.shown,
+    choices: SH.choices,
     just: SH.just, justPiece: SH.justPiece,
     wheel: { items: wheelNames(), rot: SH.rot, from: SH.spinFrom,
              winner: SH.winner, spinAt: SH.spinAt },
@@ -160,6 +162,7 @@ function open(role, tool) {
   $('#show-title').textContent = Q.Build.getConfig().title || 'Untitled quiz';
   paintTools();
   paintSound();
+  paintChoices();
   render();
 }
 
@@ -169,6 +172,17 @@ function paintSound() {
   b.classList.toggle('ghost', !SH.sound);
   b.innerHTML = Q.ico(SH.sound ? 'bolt' : 'signal-off') + (SH.sound ? 'Sound on' : 'Sound off');
   b.title = SH.sound ? 'Turn the sound off' : 'Turn the sound on';
+}
+
+function paintChoices() {
+  const b = $('#show-choices');
+  if (!b) return;
+  b.classList.toggle('ghost', !SH.choices);
+  b.innerHTML = Q.ico(SH.choices ? 'grid' : 'letters') +
+                (SH.choices ? 'With choices' : 'Question only');
+  b.title = SH.choices
+    ? 'Showing the options under each question'
+    : 'Showing the question on its own — the room answers out loud';
 }
 
 function paintTools() {
@@ -258,6 +272,7 @@ function paintNumbers(v, stage, live) {
       SH.shown = false; SH.just = 0;
       SH.used[SH.at] = 1;
       sfx('pick');
+      setTimeout(() => sfx('swish'), 330);
       store(); render();
     };
   });
@@ -265,16 +280,25 @@ function paintNumbers(v, stage, live) {
   if (again) again.onclick = startOver;
 }
 
+/* Splitting on spaces lets the line arrive a word at a time, which reads on a
+   wall the way a person says it rather than appearing all at once. */
+function wordsOf(text) {
+  const parts = String(text || '').split(/\s+/).filter(Boolean);
+  return parts.map((w, i) => '<span class="w" style="--i:' + i + '">' + esc(w) + '</span>').join(' ');
+}
+
 function paintQuestion(v, stage, live) {
   const q = questions()[v.at];
   if (!q) { emptyCard(stage, 'That question is no longer here', '', live); return; }
+  const fresh = !v.shown;
+  const words = String(q.text || '').split(/\s+/).filter(Boolean).length;
+  /* the options wait for the question to finish arriving */
+  const after = Math.min(1500, 640 + words * 55 + 240);
   const one = q.options.length <= 2 && q.options.join('').length > 40;
-  stage.innerHTML =
-    '<div class="show-q' + (v.shown ? '' : ' fresh') + '">' +
-      '<span class="qno">Number ' + v.tileNo + '</span>' +
-      (q.image ? '<img class="show-img" src="' + esc(q.image) + '" alt="">' : '') +
-      '<h2 class="show-text">' + esc(q.text) + '</h2>' +
-      '<div class="show-answers' + (one ? ' one-col' : '') + (v.shown ? ' revealed' : '') + '">' +
+
+  const answers = v.choices
+    ? '<div class="show-answers' + (one ? ' one-col' : '') + (v.shown ? ' revealed' : '') +
+        '" style="--start:' + after + 'ms">' +
         q.options.map((o, i) => {
           const right = i === q.correct;
           return '<div class="show-ans' + (v.shown ? (right ? ' right' : ' wrong') : '') +
@@ -285,7 +309,25 @@ function paintQuestion(v, stage, live) {
             (v.shown ? '<span class="ansmark">' + ico(right ? 'check' : 'cross') + '</span>' : '') +
           '</div>';
         }).join('') +
-      '</div>' +
+      '</div>'
+    /* no options on the wall: the room answers out loud and the answer lands
+       on its own when the host calls for it */
+    : (v.shown
+        ? '<div class="answer-solo"><span class="lab">Answer</span>' +
+          '<b class="val">' + esc(q.options[q.correct]) + '</b>' +
+          '<span class="ansmark">' + ico('check') + '</span></div>'
+        : '');
+
+  stage.innerHTML =
+    '<div class="show-q' + (fresh ? ' fresh' : '') + (v.choices ? '' : ' solo') + '">' +
+      (fresh
+        ? '<div class="q-open" aria-hidden="true"><span class="ring"></span>' +
+          '<span class="ring two"></span><span class="big-n">' + v.tileNo + '</span></div>'
+        : '') +
+      '<span class="qno">Number ' + v.tileNo + '</span>' +
+      (q.image ? '<img class="show-img" src="' + esc(q.image) + '" alt="">' : '') +
+      '<h2 class="show-text">' + (fresh ? wordsOf(q.text) : esc(q.text)) + '</h2>' +
+      answers +
       (live
         ? '<div class="show-actions">' +
             '<button class="btn ghost" id="show-back">' + ico('arrow-left') + 'Back to the board</button>' +
@@ -591,6 +633,11 @@ function init() {
   $('#show-edit').onclick = () => { location.hash = '#/host'; };
   $('#show-reset').onclick = startOver;
   $('#show-screen').onclick = openScreen;
+  $('#show-choices').onclick = () => {
+    SH.choices = !SH.choices;
+    sfx('swish');
+    store(); paintChoices(); render();
+  };
   $('#show-sound').onclick = () => {
     SH.sound = !SH.sound;
     Q.Sound.enabled = SH.sound;
