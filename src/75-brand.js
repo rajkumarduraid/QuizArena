@@ -43,7 +43,7 @@ const THEMES = [
   { id: 'claret',    name: 'Claret',    accent: '#E8623C', ground: '#1A0F14', wash: '#3A1720' }
 ];
 
-const DEF = { theme: 'arena', accent: '', ground: '', logo: '', mark: '' };
+const DEF = { theme: 'arena', accent: '', ground: '', logo: '', mark: '', size: 1 };
 let B = Object.assign({}, DEF);
 
 /* ------------------------------------------------------------ colour maths */
@@ -90,10 +90,20 @@ function wash() {
   return rgb(theme().wash);
 }
 
+/* How big the mark is drawn, as a multiple of its default height. Held as a
+   ratio rather than a pixel height because the mark is already sized against
+   the viewport — one number then works on a laptop and on a wall. */
+const SIZE_MIN = 0.5, SIZE_MAX = 3;
+const size = () => {
+  const n = Number(B.size);
+  return Number.isFinite(n) ? Math.max(SIZE_MIN, Math.min(SIZE_MAX, n)) : 1;
+};
+
 function load() {
   const s = LS.get(KEY, null);
   B = Object.assign({}, DEF, s && typeof s === 'object' ? s : {});
   if (!THEMES.some(t => t.id === B.theme)) B.theme = DEF.theme;
+  B.size = size();
   return B;
 }
 function save() { LS.set(KEY, B); }
@@ -127,6 +137,7 @@ function css() {
     '  --accent-rgb:' + a.map(Math.round).join(',') + ';',
     '  --brand-fill:' + hex(a) + '; --brand-fill-2:' + hex(mix(a, WHITE, 0.16)) + ';',
     '  --on-brand:' + onBrand + ';',
+    '  --mark-scale:' + size().toFixed(2) + ';',
     '  --ring:0 0 0 3px ' + hex(a) + '33;',
     '}',
     '#s-screen{',
@@ -181,7 +192,15 @@ function paintMark(doc) {
   const d = doc || document;
   try {
     const slot = d.getElementById('screen-brand');
-    if (slot) slot.innerHTML = markHTML(false);
+    if (slot) {
+      slot.innerHTML = markHTML(false);
+      /* The board sizes itself against what is left of the wall, and the bar
+         above it is whatever height the mark was set to — so the height is
+         measured and handed to the stylesheet. CSS cannot ask how tall
+         something is, and guessing it from the scale would be wrong the moment
+         there is wording but no logo, or the other way round. */
+      d.documentElement.style.setProperty('--brand-h', slot.offsetHeight + 'px');
+    }
     const bar = d.getElementById('show-brand');
     if (bar) bar.innerHTML = markHTML(false);
   } catch (e) {}
@@ -237,6 +256,7 @@ Q.Brand = {
   theme: theme,
   /* the two colours in force, for the pickers to open on */
   accentHex: () => hex(accent()),
-  groundHex: () => hex(ground())
+  groundHex: () => hex(ground()),
+  size: size, SIZE_MIN: SIZE_MIN, SIZE_MAX: SIZE_MAX
 };
 })();

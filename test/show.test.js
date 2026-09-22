@@ -6,6 +6,51 @@ const path = require('path');
 const URL = 'file://' + path.join(__dirname, '..', 'index.html');
 const { ck, done } = harness();
 
+/* A real PNG with real transparency, because the point of the logo path is
+   that the alpha channel survives — a flattened one would pass a test written
+   against a file that never had any. */
+function wideBars(w, h) {
+  const zlib = require('zlib');
+  const rows = Buffer.alloc(h * (1 + w * 4));
+  let at = 0;
+  for (let y = 0; y < h; y++) {
+    rows[at++] = 0;
+    for (let x = 0; x < w; x++) {
+      const on = y >= 8 && y < h - 8 && x >= 8 && x < w - 8 && Math.floor(x / 26) % 2 === 0;
+      rows[at++] = on ? 230 : 0; rows[at++] = on ? 198 : 0;
+      rows[at++] = on ? 92 : 0;  rows[at++] = on ? 255 : 0;
+    }
+  }
+  const chunk = (tag, data) => {
+    const body = Buffer.concat([Buffer.from(tag), data]);
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32
+      ? zlib.crc32(body) >>> 0 : crc32(body));
+    return Buffer.concat([len, body, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8; ihdr[9] = 6;
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(rows)), chunk('IEND', Buffer.alloc(0))
+  ]);
+}
+let CRC = null;
+function crc32(buf) {
+  if (!CRC) {
+    CRC = new Int32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      CRC[n] = c;
+    }
+  }
+  let c = -1;
+  for (let i = 0; i < buf.length; i++) c = CRC[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ -1) >>> 0;
+}
+
 (async () => {
   const errs = [];
   const { b, ctx } = await browser(errs);
@@ -459,10 +504,7 @@ const { ck, done } = harness();
 
   /* a logo goes in by file and lands on the room's screen */
   const logo = path.join(require('os').tmpdir(), 'qa-test-logo.png');
-  require('fs').writeFileSync(logo, Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAEAAAAAgCAYAAACinX6EAAAAPElEQVR42u3OMQEAAAgDoC252' +
-    'HOuA5KWR3sAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwzQJxzAABs1OBOwAAAABJRU5ErkJggg==',
-    'base64'));
+  require('fs').writeFileSync(logo, wideBars(340, 64));
   await p.setInputFiles('#sw-file', logo);
   await p.waitForFunction(() => !!document.querySelector('#sw-prev img'), null, { timeout: 8000 });
   ck(true, 'a logo file is taken and previewed');
@@ -477,6 +519,44 @@ const { ck, done } = harness();
     /Technology Town Hall/.test(document.querySelector('#screen-brand').textContent),
     null, { timeout: 6000 });
   ck(true, 'wording beside it follows');
+
+  /* the size of it, which a logo at one fixed height cannot be made to suit */
+  const markH = () => bScreen.$eval('#screen-brand img', e => e.getBoundingClientRect().height);
+  const boardBottom = () => bScreen.evaluate(() => {
+    const g = document.querySelector('#screen-stage .pick-grid');
+    return { bottom: g.getBoundingClientRect().bottom, h: innerHeight };
+  });
+  const h100 = await markH();
+  const fit100 = await boardBottom();
+  const setSize = async v => {
+    await p.$eval('#sw-size', (e, x) => {
+      e.value = x; e.dispatchEvent(new Event('input', { bubbles: true }));
+    }, String(v));
+    await p.waitForTimeout(320);
+  };
+  await setSize(300);
+  const h300 = await markH();
+  ck(h300 > h100 * 2.4, 'the logo can be made bigger', Math.round(h100) + 'px → ' + Math.round(h300) + 'px');
+  const fit300 = await boardBottom();
+  ck(fit300.bottom <= fit300.h, 'and the board gives way to it rather than running off the screen',
+     Math.round(fit300.bottom) + ' of ' + fit300.h);
+  ck(Math.abs(fit300.bottom - fit100.bottom) < 40,
+     'the board still ends where it did', Math.round(fit100.bottom) + ' → ' + Math.round(fit300.bottom));
+
+  await setSize(50);
+  ck((await markH()) < h100, 'and smaller');
+  ck(await p.$eval('#sw-prev img', e => e.getBoundingClientRect().height < 30),
+     'the preview in the sheet is drawn at that size too, so it can be judged there');
+  await p.click('#sw-size1');
+  await p.waitForTimeout(250);
+  ck(Math.abs((await markH()) - h100) < 2, 'Reset puts it back', Math.round(await markH()) + 'px');
+
+  await p.click('#sw-clear');
+  await p.waitForTimeout(200);
+  ck(await p.$eval('#sw-size', e => e.disabled),
+     'with no logo there is nothing to size, and the slider says so');
+  await p.setInputFiles('#sw-file', logo);
+  await p.waitForFunction(() => !!document.querySelector('#sw-prev img'), null, { timeout: 8000 });
 
   /* put it back so the rest of the suite sees the shipped look */
   await p.evaluate(() => {

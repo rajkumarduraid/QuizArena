@@ -882,14 +882,18 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   clamp(18px,3vw,50px) 0}
 .stage-brandbar:empty{display:none}
 .stage-mark{display:inline-flex; align-items:center; gap:11px; min-width:0}
-.stage-mark img{height:clamp(26px,3.2vw,46px); width:auto; max-width:min(38vw,340px);
+.stage-mark img{height:calc(clamp(26px,3.2vw,46px) * var(--mark-scale,1));
+  width:auto; max-width:min(38vw,340px);
   object-fit:contain; display:block}
 .stage-mark span{font-family:var(--display); font-weight:var(--dw); letter-spacing:-.01em;
   font-size:clamp(15px,1.7vw,23px); color:var(--ink-2); white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis}
-.stage-mark.big img{height:clamp(52px,7vw,104px); max-width:min(70vw,620px)}
+.stage-mark.big img{height:calc(clamp(52px,7vw,104px) * var(--mark-scale,1));
+  max-width:min(70vw,620px)}
 .stage-mark.big span{font-size:clamp(22px,3.4vw,42px)}
-#show-brand .stage-mark img{height:24px}
+/* the host's toolbar takes the size too, but capped: a mark set large for the
+   back of a room should not push the controls onto a third row */
+#show-brand .stage-mark img{height:min(44px, calc(24px * var(--mark-scale,1)))}
 #show-brand .stage-mark span{font-size:14px; color:var(--muted)}
 
 /* ---- the stage settings sheet ---- */
@@ -909,9 +913,12 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 .theme-chip .sw{width:20px; height:20px; border-radius:99px; flex:none;
   border:1.5px solid rgba(255,255,255,.7); box-shadow:0 1px 3px rgba(0,0,0,.28)}
 .logo-row{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
-.logo-prev{height:52px; min-width:52px; padding:7px 11px; border-radius:11px;
+.logo-prev{min-height:52px; min-width:52px; padding:7px 11px; border-radius:11px;
   background:var(--sunken); border:1px solid var(--line); display:grid; place-items:center}
-.logo-prev img{max-height:38px; max-width:180px; object-fit:contain; display:block}
+/* the preview is drawn at the size that was set, so the slider shows what the
+   room will get — bounded, or a mark at 3x would push the sheet apart */
+.logo-prev img{height:min(110px, calc(38px * var(--mark-scale,1)));
+  width:auto; max-width:min(240px,42vw); object-fit:contain; display:block}
 .logo-prev.dark{background:#111427; border-color:#2A2F4A}
 .vol-row{display:flex; align-items:center; gap:12px}
 .vol-row input[type=range]{flex:1; accent-color:var(--brand)}
@@ -1026,7 +1033,8 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   box-shadow:0 20px 60px rgba(0,0,0,.5)}
 /* the reserve covers the heading, the stage padding and the grid's own gaps —
    a board that runs off the bottom of a projector is worse than a small one */
-.screen-stage .pick-grid.big{width:min(100%,min(1400px,calc((100dvh - 300px) * var(--cols,4) / var(--rows,3))))}
+.screen-stage .pick-grid.big{
+  width:min(100%,min(1400px,calc((100dvh - 300px - var(--brand-h,0px)) * var(--cols,4) / var(--rows,3))))}
 .screen-stage .pick-grid.big .pick-tile .n{font-size:clamp(44px,8vw,104px)}
 .screen-stage .wheel-hold{width:min(66vh,min(680px,88vw))}
 .screen-stage .wheel-out{font-size:clamp(26px,4.4vw,56px)}
@@ -9071,7 +9079,7 @@ const THEMES = [
   { id: 'claret',    name: 'Claret',    accent: '#E8623C', ground: '#1A0F14', wash: '#3A1720' }
 ];
 
-const DEF = { theme: 'arena', accent: '', ground: '', logo: '', mark: '' };
+const DEF = { theme: 'arena', accent: '', ground: '', logo: '', mark: '', size: 1 };
 let B = Object.assign({}, DEF);
 
 /* ------------------------------------------------------------ colour maths */
@@ -9118,10 +9126,20 @@ function wash() {
   return rgb(theme().wash);
 }
 
+/* How big the mark is drawn, as a multiple of its default height. Held as a
+   ratio rather than a pixel height because the mark is already sized against
+   the viewport — one number then works on a laptop and on a wall. */
+const SIZE_MIN = 0.5, SIZE_MAX = 3;
+const size = () => {
+  const n = Number(B.size);
+  return Number.isFinite(n) ? Math.max(SIZE_MIN, Math.min(SIZE_MAX, n)) : 1;
+};
+
 function load() {
   const s = LS.get(KEY, null);
   B = Object.assign({}, DEF, s && typeof s === 'object' ? s : {});
   if (!THEMES.some(t => t.id === B.theme)) B.theme = DEF.theme;
+  B.size = size();
   return B;
 }
 function save() { LS.set(KEY, B); }
@@ -9155,6 +9173,7 @@ function css() {
     '  --accent-rgb:' + a.map(Math.round).join(',') + ';',
     '  --brand-fill:' + hex(a) + '; --brand-fill-2:' + hex(mix(a, WHITE, 0.16)) + ';',
     '  --on-brand:' + onBrand + ';',
+    '  --mark-scale:' + size().toFixed(2) + ';',
     '  --ring:0 0 0 3px ' + hex(a) + '33;',
     '}',
     '#s-screen{',
@@ -9209,7 +9228,15 @@ function paintMark(doc) {
   const d = doc || document;
   try {
     const slot = d.getElementById('screen-brand');
-    if (slot) slot.innerHTML = markHTML(false);
+    if (slot) {
+      slot.innerHTML = markHTML(false);
+      /* The board sizes itself against what is left of the wall, and the bar
+         above it is whatever height the mark was set to — so the height is
+         measured and handed to the stylesheet. CSS cannot ask how tall
+         something is, and guessing it from the scale would be wrong the moment
+         there is wording but no logo, or the other way round. */
+      d.documentElement.style.setProperty('--brand-h', slot.offsetHeight + 'px');
+    }
     const bar = d.getElementById('show-brand');
     if (bar) bar.innerHTML = markHTML(false);
   } catch (e) {}
@@ -9265,7 +9292,8 @@ Q.Brand = {
   theme: theme,
   /* the two colours in force, for the pickers to open on */
   accentHex: () => hex(accent()),
-  groundHex: () => hex(ground())
+  groundHex: () => hex(ground()),
+  size: size, SIZE_MIN: SIZE_MIN, SIZE_MAX: SIZE_MAX
 };
 })();
 
@@ -10178,6 +10206,15 @@ function stageSetup() {
         '<button class="btn ghost sm" id="sw-clear">Remove</button>' +
         '<input type="file" accept="image/*" id="sw-file" class="hide">' +
       '</div>' +
+      '<div class="vol-row" id="sw-sizerow" style="margin-top:12px">' +
+        '<span class="dim" style="font-size:13px;min-width:52px">Size</span>' +
+        '<input type="range" id="sw-size" min="' + Math.round(Q.Brand.SIZE_MIN * 100) +
+          '" max="' + Math.round(Q.Brand.SIZE_MAX * 100) + '" step="5" value="' +
+          Math.round(Q.Brand.size() * 100) + '">' +
+        '<span class="mono num" id="sw-sizev" style="min-width:44px;text-align:right">' +
+          Math.round(Q.Brand.size() * 100) + '%</span>' +
+        '<button class="btn ghost xs" id="sw-size1">Reset</button>' +
+      '</div>' +
       '<p class="dim" style="font-size:12.5px;margin-top:10px;line-height:1.6">' +
         'An SVG or a PNG with a transparent background sits best on a dark screen. ' +
         'It is stored in this browser and goes nowhere else. Whatever you put here is ' +
@@ -10237,6 +10274,9 @@ function stageSetup() {
           ? '<img src="' + esc(lg) + '" alt="">'
           : '<span class="faint" style="font-size:12px">No logo yet</span>';
         $('#sw-clear', box).disabled = !lg;
+        /* the size only means anything once there is something to size */
+        $('#sw-sizerow', box).style.opacity = lg ? '' : '.45';
+        $('#sw-size', box).disabled = !lg;
       };
       const paintThemes = () => {
         $('#sw-themes', box).innerHTML = Q.Brand.THEMES.map(t =>
@@ -10263,6 +10303,16 @@ function stageSetup() {
       $('#sw-accent', box).oninput = e => { Q.Brand.set({ accent: e.target.value }); paintThemes(); brandChanged(); };
       $('#sw-ground', box).oninput = e => { Q.Brand.set({ ground: e.target.value }); paintThemes(); brandChanged(); };
       $('#sw-mark', box).oninput = e => { Q.Brand.set({ mark: e.target.value.trim() }); brandChanged(); };
+
+      const sizeV = $('#sw-sizev', box);
+      const setSize = n => {
+        Q.Brand.set({ size: n / 100 });
+        sizeV.textContent = Math.round(Q.Brand.size() * 100) + '%';
+        $('#sw-size', box).value = Math.round(Q.Brand.size() * 100);
+        brandChanged();
+      };
+      $('#sw-size', box).oninput = e => setSize(Number(e.target.value));
+      $('#sw-size1', box).onclick = () => setSize(100);
 
       const file = $('#sw-file', box);
       $('#sw-pick', box).onclick = () => file.click();

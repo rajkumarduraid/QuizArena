@@ -882,14 +882,18 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   clamp(18px,3vw,50px) 0}
 .stage-brandbar:empty{display:none}
 .stage-mark{display:inline-flex; align-items:center; gap:11px; min-width:0}
-.stage-mark img{height:clamp(26px,3.2vw,46px); width:auto; max-width:min(38vw,340px);
+.stage-mark img{height:calc(clamp(26px,3.2vw,46px) * var(--mark-scale,1));
+  width:auto; max-width:min(38vw,340px);
   object-fit:contain; display:block}
 .stage-mark span{font-family:var(--display); font-weight:var(--dw); letter-spacing:-.01em;
   font-size:clamp(15px,1.7vw,23px); color:var(--ink-2); white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis}
-.stage-mark.big img{height:clamp(52px,7vw,104px); max-width:min(70vw,620px)}
+.stage-mark.big img{height:calc(clamp(52px,7vw,104px) * var(--mark-scale,1));
+  max-width:min(70vw,620px)}
 .stage-mark.big span{font-size:clamp(22px,3.4vw,42px)}
-#show-brand .stage-mark img{height:24px}
+/* the host's toolbar takes the size too, but capped: a mark set large for the
+   back of a room should not push the controls onto a third row */
+#show-brand .stage-mark img{height:min(44px, calc(24px * var(--mark-scale,1)))}
 #show-brand .stage-mark span{font-size:14px; color:var(--muted)}
 
 /* ---- the stage settings sheet ---- */
@@ -909,9 +913,12 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 .theme-chip .sw{width:20px; height:20px; border-radius:99px; flex:none;
   border:1.5px solid rgba(255,255,255,.7); box-shadow:0 1px 3px rgba(0,0,0,.28)}
 .logo-row{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
-.logo-prev{height:52px; min-width:52px; padding:7px 11px; border-radius:11px;
+.logo-prev{min-height:52px; min-width:52px; padding:7px 11px; border-radius:11px;
   background:var(--sunken); border:1px solid var(--line); display:grid; place-items:center}
-.logo-prev img{max-height:38px; max-width:180px; object-fit:contain; display:block}
+/* the preview is drawn at the size that was set, so the slider shows what the
+   room will get — bounded, or a mark at 3x would push the sheet apart */
+.logo-prev img{height:min(110px, calc(38px * var(--mark-scale,1)));
+  width:auto; max-width:min(240px,42vw); object-fit:contain; display:block}
 .logo-prev.dark{background:#111427; border-color:#2A2F4A}
 .vol-row{display:flex; align-items:center; gap:12px}
 .vol-row input[type=range]{flex:1; accent-color:var(--brand)}
@@ -1026,7 +1033,8 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   box-shadow:0 20px 60px rgba(0,0,0,.5)}
 /* the reserve covers the heading, the stage padding and the grid's own gaps —
    a board that runs off the bottom of a projector is worse than a small one */
-.screen-stage .pick-grid.big{width:min(100%,min(1400px,calc((100dvh - 300px) * var(--cols,4) / var(--rows,3))))}
+.screen-stage .pick-grid.big{
+  width:min(100%,min(1400px,calc((100dvh - 300px - var(--brand-h,0px)) * var(--cols,4) / var(--rows,3))))}
 .screen-stage .pick-grid.big .pick-tile .n{font-size:clamp(44px,8vw,104px)}
 .screen-stage .wheel-hold{width:min(66vh,min(680px,88vw))}
 .screen-stage .wheel-out{font-size:clamp(26px,4.4vw,56px)}

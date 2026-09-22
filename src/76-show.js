@@ -907,6 +907,15 @@ function stageSetup() {
         '<button class="btn ghost sm" id="sw-clear">Remove</button>' +
         '<input type="file" accept="image/*" id="sw-file" class="hide">' +
       '</div>' +
+      '<div class="vol-row" id="sw-sizerow" style="margin-top:12px">' +
+        '<span class="dim" style="font-size:13px;min-width:52px">Size</span>' +
+        '<input type="range" id="sw-size" min="' + Math.round(Q.Brand.SIZE_MIN * 100) +
+          '" max="' + Math.round(Q.Brand.SIZE_MAX * 100) + '" step="5" value="' +
+          Math.round(Q.Brand.size() * 100) + '">' +
+        '<span class="mono num" id="sw-sizev" style="min-width:44px;text-align:right">' +
+          Math.round(Q.Brand.size() * 100) + '%</span>' +
+        '<button class="btn ghost xs" id="sw-size1">Reset</button>' +
+      '</div>' +
       '<p class="dim" style="font-size:12.5px;margin-top:10px;line-height:1.6">' +
         'An SVG or a PNG with a transparent background sits best on a dark screen. ' +
         'It is stored in this browser and goes nowhere else. Whatever you put here is ' +
@@ -966,6 +975,9 @@ function stageSetup() {
           ? '<img src="' + esc(lg) + '" alt="">'
           : '<span class="faint" style="font-size:12px">No logo yet</span>';
         $('#sw-clear', box).disabled = !lg;
+        /* the size only means anything once there is something to size */
+        $('#sw-sizerow', box).style.opacity = lg ? '' : '.45';
+        $('#sw-size', box).disabled = !lg;
       };
       const paintThemes = () => {
         $('#sw-themes', box).innerHTML = Q.Brand.THEMES.map(t =>
@@ -992,6 +1004,16 @@ function stageSetup() {
       $('#sw-accent', box).oninput = e => { Q.Brand.set({ accent: e.target.value }); paintThemes(); brandChanged(); };
       $('#sw-ground', box).oninput = e => { Q.Brand.set({ ground: e.target.value }); paintThemes(); brandChanged(); };
       $('#sw-mark', box).oninput = e => { Q.Brand.set({ mark: e.target.value.trim() }); brandChanged(); };
+
+      const sizeV = $('#sw-sizev', box);
+      const setSize = n => {
+        Q.Brand.set({ size: n / 100 });
+        sizeV.textContent = Math.round(Q.Brand.size() * 100) + '%';
+        $('#sw-size', box).value = Math.round(Q.Brand.size() * 100);
+        brandChanged();
+      };
+      $('#sw-size', box).oninput = e => setSize(Number(e.target.value));
+      $('#sw-size1', box).onclick = () => setSize(100);
 
       const file = $('#sw-file', box);
       $('#sw-pick', box).onclick = () => file.click();

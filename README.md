@@ -234,6 +234,17 @@ stage; unlike a question's picture, a logo is never flattened onto white,
 because the transparency is the thing that makes it sit on the stage at all. It
 is kept in this browser and goes nowhere else.
 
+**Size** underneath it runs from half to three times, and the preview in the
+sheet is drawn at whatever you set, so you can judge it without the projector
+in front of you. It is held as a ratio rather than a pixel height — the mark is
+already sized against the viewport, so one number is right on a laptop and on a
+wall. The board gives way as the mark grows rather than running off the bottom
+of the screen: the bar's height is measured and handed to the stylesheet, since
+CSS cannot ask how tall something is and guessing it from the ratio would be
+wrong the moment there is wording but no logo. Your own toolbar takes the size
+too, but capped, so a mark set for the back of a room does not push the
+controls onto a third row.
+
 There is no company mark in this repository and there will not be one. A logo
 belongs to the company it names, and anyone inside that company already has the
 real file. What you put in that slot is your call — make sure you have the
