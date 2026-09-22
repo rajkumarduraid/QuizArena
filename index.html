@@ -32,6 +32,16 @@
   /* brand */
   --brand:#4B2FE3;
   --brand-2:#6D4BFF;
+  /* the accent as channels, so glows and washes can be mixed from it at any
+     opacity — a hex cannot carry an alpha through a custom property */
+  --accent-rgb:109,75,255;
+  /* The accent does two jobs that pull in opposite directions: it is text on
+     paper, where it has to be dark, and it is the fill under a primary
+     button, where it only has to carry whatever ink we put on it. A brand
+     colour that is light — a gold, an orange — comes out drab if one value
+     has to do both, so there are two, and the ink on the fill is chosen to
+     suit it. */
+  --brand-fill:#4B2FE3; --brand-fill-2:#6D4BFF; --on-brand:#fff;
   --brand-soft:#EFEBFF;
   --brand-line:#CDC2FF;
 
@@ -69,7 +79,7 @@ html,body{height:100%}
 body{
   margin:0; font-family:var(--sans); color:var(--ink); background:var(--bg);
   background-image:
-    radial-gradient(760px 520px at 8% -8%, rgba(109,75,255,.13), transparent 62%),
+    radial-gradient(760px 520px at 8% -8%, rgba(var(--accent-rgb),.13), transparent 62%),
     radial-gradient(680px 460px at 102% 4%, rgba(14,143,98,.09), transparent 58%),
     radial-gradient(620px 520px at 46% 108%, rgba(227,148,0,.09), transparent 60%);
   background-attachment:fixed;
@@ -83,7 +93,7 @@ p{margin:0}
 button,input,select,textarea{font:inherit; color:inherit}
 button{cursor:pointer; border:0; background:none}
 a{color:var(--brand)}
-::selection{background:rgba(109,75,255,.22)}
+::selection{background:rgba(var(--accent-rgb),.22)}
 :focus-visible{outline:2px solid var(--brand); outline-offset:2px; border-radius:6px}
 
 *::-webkit-scrollbar{width:11px;height:11px}
@@ -157,8 +167,9 @@ a{color:var(--brand)}
 .btn:active{transform:translateY(0) scale(.986)}
 .btn:disabled{opacity:.42; cursor:not-allowed; transform:none; box-shadow:none}
 .btn .ico{opacity:.75}
-.btn.primary{background:linear-gradient(180deg,var(--brand-2),var(--brand));
-  border-color:transparent; color:#fff; box-shadow:0 1px 2px rgba(38,28,110,.28), 0 8px 20px rgba(75,47,227,.26)}
+.btn.primary{background:linear-gradient(180deg,var(--brand-fill-2),var(--brand-fill));
+  border-color:transparent; color:var(--on-brand);
+  box-shadow:0 1px 2px rgba(38,28,110,.28), 0 8px 20px rgba(var(--accent-rgb),.26)}
 .btn.primary:hover{box-shadow:0 2px 4px rgba(38,28,110,.3), 0 12px 28px rgba(75,47,227,.34)}
 .btn.primary .ico{opacity:1}
 .btn.go{background:linear-gradient(180deg,#12A876,#0B7D55); border-color:transparent; color:#fff;
@@ -779,6 +790,7 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 /* On a projector the tiles should fill the wall, so the column count comes
    from how many there are rather than from a minimum width that leaves the
    bottom half of the screen empty. */
+.pick-grid{position:relative}
 .pick-grid.big{grid-template-columns:repeat(var(--cols,4),minmax(0,1fr)); gap:clamp(10px,1.4vw,20px);
   width:min(100%,min(1180px,calc((100dvh - 330px) * var(--cols,4) / var(--rows,3)))); margin-inline:auto}
 .pick-tile{aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -800,6 +812,109 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 .pick-tile.done .sub{color:var(--faint)}
 .pick-tile.just{animation:tile-pop .5s var(--spring) both}
 @keyframes tile-pop{from{transform:scale(.86);opacity:.2}to{transform:scale(1);opacity:1}}
+
+/* ---- the spin ----
+   A number is called from the floor and the host taps it. Between those two
+   things the board runs a spotlight round itself, slowing into the tile that
+   was asked for. Nothing is being chosen here — the number was already called
+   — so the sweep is short, it decelerates hard into its target, and it never
+   passes it after the last lap: it reads as the board finding the number
+   rather than picking one.
+
+   Both windows run it from the same timestamp rather than being told frame by
+   frame, so the projector and the laptop stay in step even if one repaints
+   late. */
+/* the deal-in animation is filled `both`, and a filled animation beats any
+   declarative opacity or transform — so it has to be taken off the tiles
+   before the sweep can dim them at all */
+.pick-grid.sweeping .pick-tile,
+.pick-grid.landing .pick-tile:not(.landed){animation:none}
+/* no transition: at the start of a sweep the spotlight moves faster than a
+   .12s ease could ever land, so it would only ever show a smear */
+.pick-grid.sweeping .pick-tile{transition:none}
+.pick-grid.sweeping .pick-tile:not(.spot){opacity:.42; transform:scale(.97)}
+.pick-grid.sweeping .pick-tile.spot{opacity:1; transform:scale(1.09);
+  border-color:var(--brand); z-index:3;
+  background:linear-gradient(168deg,rgba(var(--accent-rgb),.34),rgba(255,255,255,.09));
+  box-shadow:0 0 0 4px var(--brand), 0 0 46px rgba(var(--accent-rgb),.5), var(--sh-3);
+  /* set as a token rather than a colour, so it reaches the numeral without
+     having to beat the rule that paints it */
+  --num:#fff}
+.pick-grid.sweeping .pick-tile.spot .n{color:var(--brand)}
+
+/* the landing: the tile turns over once, swells, and the board goes quiet */
+.pick-grid.landing .pick-tile:not(.landed){opacity:.1; transform:scale(.9);
+  transition:opacity .4s var(--ease), transform .4s var(--ease)}
+/* the board draws back as the one tile comes forward, which is what keeps a
+   tile on the bottom row from swelling off the end of the wall */
+.pick-grid.landing{perspective:1400px; transform:scale(.93);
+  transition:transform .4s var(--ease)}
+.pick-grid .pick-tile.landed{animation:tile-land .72s cubic-bezier(.16,.84,.26,1) both;
+  z-index:4; border-color:var(--brand)}
+/* it swells, but not so far that a tile on the bottom row leaves the wall */
+@keyframes tile-land{
+  0%  {transform:scale(1.09) rotateY(0); box-shadow:0 0 0 3px var(--brand), var(--sh-3)}
+  38% {transform:scale(1.16) rotateY(180deg)}
+  72% {transform:scale(1.24) rotateY(360deg); box-shadow:0 0 0 5px var(--brand), var(--sh-3)}
+  100%{transform:scale(1.18) rotateY(360deg); box-shadow:0 0 0 5px var(--brand), var(--sh-3)}
+}
+.pick-grid .pick-tile.landed .n{animation:land-n .72s cubic-bezier(.16,.84,.26,1) both}
+@keyframes land-n{0%{transform:scale(1)} 50%{transform:scale(1.12)} 100%{transform:scale(1)}}
+
+/* a ring thrown off the tile as the spotlight stops on it */
+.pick-grid.landing::after{content:""; position:absolute; inset:0; pointer-events:none;
+  border-radius:inherit}
+.spot-ring{position:absolute; border-radius:var(--r-l); pointer-events:none; z-index:2;
+  border:3px solid var(--brand); animation:spot-ring .72s var(--ease) both}
+@keyframes spot-ring{from{opacity:.85; transform:scale(1)} to{opacity:0; transform:scale(1.9)}}
+
+@media(prefers-reduced-motion:reduce){
+  .pick-grid.sweeping .pick-tile:not(.spot),
+  .pick-grid.landing .pick-tile:not(.landed){opacity:1; transform:none}
+  .pick-grid .pick-tile.landed{animation:none}
+}
+
+/* ---- the company's own mark ----
+   Whatever is put here is somebody's actual logo, so it is given room and
+   never restyled: no filters, no recolouring, no cropping to a circle. It sits
+   at a fixed height and keeps its own proportions. */
+.stage-brandbar{display:flex; justify-content:flex-start; padding:clamp(14px,2vw,26px)
+  clamp(18px,3vw,50px) 0}
+.stage-brandbar:empty{display:none}
+.stage-mark{display:inline-flex; align-items:center; gap:11px; min-width:0}
+.stage-mark img{height:clamp(26px,3.2vw,46px); width:auto; max-width:min(38vw,340px);
+  object-fit:contain; display:block}
+.stage-mark span{font-family:var(--display); font-weight:var(--dw); letter-spacing:-.01em;
+  font-size:clamp(15px,1.7vw,23px); color:var(--ink-2); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis}
+.stage-mark.big img{height:clamp(52px,7vw,104px); max-width:min(70vw,620px)}
+.stage-mark.big span{font-size:clamp(22px,3.4vw,42px)}
+#show-brand .stage-mark img{height:24px}
+#show-brand .stage-mark span{font-size:14px; color:var(--muted)}
+
+/* ---- the stage settings sheet ---- */
+.set-sec{padding-block:16px; border-top:1px solid var(--line)}
+.set-sec:first-of-type{border-top:0; padding-top:6px}
+.set-sec > h3{font-size:12px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--faint); font-family:var(--sans); font-weight:700; margin-bottom:11px}
+.set-rows{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:11px}
+@media(max-width:520px){.set-rows{grid-template-columns:minmax(0,1fr)}}
+.set-rows .wide{grid-column:1/-1}
+.theme-row{display:flex; flex-wrap:wrap; gap:8px}
+.theme-chip{display:inline-flex; align-items:center; gap:8px; padding:6px 12px 6px 7px;
+  border-radius:999px; border:1px solid var(--line-2); background:var(--surface);
+  font-size:13px; font-weight:600; cursor:pointer; transition:.15s var(--ease)}
+.theme-chip:hover{border-color:var(--line-2); transform:translateY(-1px)}
+.theme-chip[aria-pressed=true]{border-color:var(--brand); box-shadow:var(--ring)}
+.theme-chip .sw{width:20px; height:20px; border-radius:99px; flex:none;
+  border:1.5px solid rgba(255,255,255,.7); box-shadow:0 1px 3px rgba(0,0,0,.28)}
+.logo-row{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.logo-prev{height:52px; min-width:52px; padding:7px 11px; border-radius:11px;
+  background:var(--sunken); border:1px solid var(--line); display:grid; place-items:center}
+.logo-prev img{max-height:38px; max-width:180px; object-fit:contain; display:block}
+.logo-prev.dark{background:#111427; border-color:#2A2F4A}
+.vol-row{display:flex; align-items:center; gap:12px}
+.vol-row input[type=range]{flex:1; accent-color:var(--brand)}
 
 /* ============================================================
    BIG SCREEN
@@ -893,6 +1008,7 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   --surface:#221E44; --surface-2:#2A2553; --sunken:#1B1838;
   --line:#3B3572; --line-2:#514A96;
   --brand:#A78BFF; --brand-2:#C4B2FF; --brand-soft:#2E2760; --brand-line:#4C4394;
+  --accent-rgb:167,139,255; --num:#EDE9FF;
   --ok:#4ADE9B; --gold:#FFC65C;
   color:var(--ink);
   background:
@@ -916,20 +1032,23 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 .screen-stage .wheel-out{font-size:clamp(26px,4.4vw,56px)}
 .screen-stage .qno{letter-spacing:.24em}
 
-/* the tiles are lit panels on the stage rather than paper cards */
-#s-screen .pick-tile{
-  background:linear-gradient(168deg,rgba(255,255,255,.13),rgba(255,255,255,.04));
-  border-color:rgba(167,139,255,.42);
+/* The tiles are lit panels on the stage rather than paper cards.
+   Scoped by the stage's class and not by #s-screen on purpose: an id here
+   would out-specify every state below it, and the sweep would have no way to
+   light a tile up. */
+.screen-stage .pick-tile{
+  background:linear-gradient(168deg,rgba(var(--accent-rgb),.1),rgba(255,255,255,.055));
+  border-color:rgba(var(--accent-rgb),.42);
   box-shadow:0 14px 34px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.14)}
-#s-screen .pick-tile .n{color:#EDE9FF; text-shadow:0 0 26px rgba(167,139,255,.6)}
-#s-screen .pick-tile.done{background:rgba(255,255,255,.035); border-color:rgba(255,255,255,.09);
+.screen-stage .pick-tile .n{color:var(--num); text-shadow:0 0 26px rgba(var(--accent-rgb),.6)}
+.screen-stage .pick-tile.done{background:rgba(255,255,255,.035); border-color:rgba(255,255,255,.09);
   box-shadow:none}
-#s-screen .pick-tile.done .n{color:rgba(255,255,255,.34); text-shadow:none}
-#s-screen .pick-tile.done .sub{color:rgba(255,255,255,.4)}
+.screen-stage .pick-tile.done .n{color:rgba(255,255,255,.34); text-shadow:none}
+.screen-stage .pick-tile.done .sub{color:rgba(255,255,255,.4)}
 #s-screen .wheel-hold svg{filter:drop-shadow(0 18px 44px rgba(0,0,0,.55))}
 #s-screen .wheel-pin{border-top-color:#FFC65C;
   filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
-#s-screen .wheel-hub{background:#1B1838; border-color:rgba(255,255,255,.35)}
+#s-screen .wheel-hub{background:var(--sunken); border-color:rgba(255,255,255,.35)}
 #s-screen .wheel-out.on{color:#FFD98A; text-shadow:0 0 34px rgba(255,198,92,.45)}
 #s-screen .reveal-hold{border-color:var(--line-2); box-shadow:0 22px 60px rgba(0,0,0,.5)}
 
@@ -954,7 +1073,7 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   pointer-events:none; z-index:5; perspective:900px}
 .q-open .big-n{grid-area:1/1; font-family:var(--display); font-weight:var(--dw);
   font-size:clamp(110px,24vw,290px); line-height:1; color:var(--brand);
-  text-shadow:0 0 70px rgba(109,75,255,.45);
+  text-shadow:0 0 70px rgba(var(--accent-rgb),.45);
   animation:open-n 1.05s cubic-bezier(.2,.8,.24,1) both}
 @keyframes open-n{
   0%{opacity:0; transform:scale(.24) rotateY(-100deg)}
@@ -1532,12 +1651,14 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   <header class="topbar no-print">
     <div class="wrap-wide topbar-in">
       <button class="brand" id="show-home" data-mark title="Back to start">Quiz Arena</button>
+      <span id="show-brand"></span>
       <span class="pill" id="show-title"></span>
       <div class="grow"></div>
       <div class="pz-levels" id="show-tools"></div>
       <button class="btn ghost sm" id="show-edit" data-ico="sliders">Questions</button>
       <button class="btn sm" id="show-choices">With choices</button>
       <button class="btn sm" id="show-sound">Sound on</button>
+      <button class="btn ghost sm" id="show-setup" data-ico="sliders">Stage</button>
       <button class="btn primary sm" id="show-screen">Open the screen</button>
       <button class="btn ghost sm" id="show-full" data-ico="eye">Full screen</button>
       <button class="btn ghost sm" id="show-reset" data-ico="refresh">Start over</button>
@@ -1548,6 +1669,7 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 
 <!-- ================= BIG SCREEN: the audience's window ================= -->
 <section class="screen" id="s-screen">
+  <div class="stage-brandbar" id="screen-brand"></div>
   <div class="show-stage screen-stage" id="screen-stage"></div>
 </section>
 
@@ -3997,15 +4119,18 @@ const TEAM_PALETTE = ['#D62650', '#1B5BDB', '#B96A00', '#0B8C5E', '#6E38CE', '#0
 const ico = (name, cls) =>
   '<svg class="ico ' + (cls || '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>';
 
-/* The mark: a Q whose tail is the answer triangle. */
+/* The mark: a Q whose tail is the answer triangle. Its colours are read from
+   the theme rather than written in, so a rebranded app is not left with the
+   app's own purple sitting in the corner of somebody else's palette. */
 function markSVG(px) {
   const id = 'qm' + Math.random().toString(36).slice(2, 7);
   return '<svg class="mark" viewBox="0 0 32 32" role="img" aria-label="Quiz Arena"' +
     (px ? ' style="font-size:' + px + 'px"' : '') + '>' +
     '<defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1">' +
-    '<stop offset="0" stop-color="#6D4BFF"/><stop offset="1" stop-color="#3A22C4"/></linearGradient></defs>' +
+    '<stop offset="0" stop-color="var(--brand-fill-2,#6D4BFF)"/>' +
+    '<stop offset="1" stop-color="var(--brand-fill,#3A22C4)"/></linearGradient></defs>' +
     '<circle cx="14.6" cy="14.6" r="10" fill="none" stroke="url(#' + id + ')" stroke-width="4.7"/>' +
-    '<path d="M20.2 20.2 29 25.3l-5.6 3.6Z" fill="#E39400"/></svg>';
+    '<path d="M20.2 20.2 29 25.3l-5.6 3.6Z" fill="var(--gold,#E39400)"/></svg>';
 }
 
 /* ------------------------------------------------------------------ toast */
@@ -4059,65 +4184,280 @@ const SS = {
   set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 };
 
-/* ------------------------------------------------------------------ sound */
+/* ------------------------------------------------------------------ sound
+   Every sound here is synthesised on the spot — no files to load, nothing to
+   fetch, which is the only way it works from a downloaded page on a locked-down
+   laptop. What makes the difference between an instrument and a beep is not the
+   waveform, it is everything around it:
+
+     · an envelope with a few milliseconds of attack, so no note begins with a
+       click, and a curve down rather than a gate at the end
+     · a lowpass that closes as the note dies, the way a struck object loses
+       its brightness before it loses its volume
+     · partials — a real bell is a fundamental with a couple of quieter
+       harmonics over it, not one sine wave
+     · a short room on a send, so nothing lands flat against a hard wall
+     · a limiter across the end, so two sounds landing together never clip
+
+   Pitches come from one scale, so anything that overlaps still agrees. */
 const Sound = (function () {
-  let ctx = null, on = true;
-  const ensure = () => {
-    if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+  let ctx = null, on = true, vol = 1;
+  let master = null, wet = null, hiss = null;
+
+  /* C major, which is where everything in here sits */
+  const N = {
+    C2: 65.41, G2: 98.00, C3: 130.81, E3: 164.81, F3: 174.61, G3: 196.00,
+    A3: 220.00, B3: 246.94,
+    C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00,
+    C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880.00,
+    C6: 1046.50, D6: 1174.66, E6: 1318.51, G6: 1568.00, C7: 2093.00
+  };
+
+  function ensure() {
+    if (!ctx) {
+      try { ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (e) { return null; }
+      build(ctx);
+    }
     if (ctx.state === 'suspended') ctx.resume();
     return ctx;
-  };
-  function blip(freq, dur, type, gain) {
-    if (!on) return;
-    const c = ensure(); if (!c) return;
-    const o = c.createOscillator(), g = c.createGain();
-    o.type = type || 'sine';
-    o.frequency.setValueAtTime(freq, c.currentTime);
-    g.gain.setValueAtTime(0.0001, c.currentTime);
-    g.gain.exponentialRampToValueAtTime(gain || 0.14, c.currentTime + 0.012);
-    g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
-    o.connect(g); g.connect(c.destination);
-    o.start(); o.stop(c.currentTime + dur + 0.02);
   }
+
+  function build(c) {
+    /* the limiter is the reason a chord and a whoosh can land on the same
+       beat without the projector's speakers spitting */
+    const lim = c.createDynamicsCompressor();
+    lim.threshold.value = -10; lim.knee.value = 22; lim.ratio.value = 6;
+    lim.attack.value = 0.003; lim.release.value = 0.18;
+    lim.connect(c.destination);
+
+    master = c.createGain();
+    master.gain.value = 0.9;
+    master.connect(lim);
+
+    /* a small, dry-ish room: long enough to sound like somewhere, short
+       enough that a run of ticks does not turn to mush */
+    const rev = c.createConvolver();
+    rev.buffer = impulse(c, 1.1, 3.4);
+    const tame = c.createBiquadFilter();       /* keep the tail off the top end */
+    tame.type = 'lowpass'; tame.frequency.value = 3600;
+    wet = c.createGain(); wet.gain.value = 0.9;
+    wet.connect(tame); tame.connect(rev); rev.connect(master);
+
+    /* one noise buffer, reused — generating two seconds of random numbers per
+       tick would be the most expensive thing on the page */
+    hiss = c.createBuffer(1, Math.floor(c.sampleRate * 2), c.sampleRate);
+    const d = hiss.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+
+  function impulse(c, secs, decay) {
+    const n = Math.floor(c.sampleRate * secs);
+    const b = c.createBuffer(2, n, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = b.getChannelData(ch);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay);
+    }
+    return b;
+  }
+
+  const lvl = g => Math.max(0.00012, g * vol);
+
+  /* One note: oscillator → closing lowpass → envelope → out, with a send. */
+  function tone(o) {
+    const c = ensure(); if (!c || !on) return;
+    const t = c.currentTime + (o.at || 0);
+    const dur = o.dur || 0.3;
+    const peak = lvl(o.gain == null ? 0.1 : o.gain);
+    if (peak < 0.0002) return;
+
+    const osc = c.createOscillator();
+    osc.type = o.type || 'sine';
+    osc.frequency.setValueAtTime(o.f, t);
+    if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + dur * (o.bend || 1));
+    if (o.detune) osc.detune.value = o.detune;
+
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = o.q == null ? 0.7 : o.q;
+    lp.frequency.setValueAtTime(Math.min(16000, o.open || o.f * 7), t);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(160, o.close || o.f * 1.5), t + dur);
+
+    const g = c.createGain();
+    const atk = o.atk == null ? 0.007 : o.atk;
+    g.gain.setValueAtTime(0.00012, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + atk);
+    if (o.hold) g.gain.setValueAtTime(peak, t + atk + o.hold);
+    g.gain.exponentialRampToValueAtTime(0.00012, t + dur);
+
+    osc.connect(lp); lp.connect(g); g.connect(master);
+    send(c, g, o.send == null ? 0.22 : o.send);
+    osc.start(t); osc.stop(t + dur + 0.06);
+  }
+
+  /* A struck thing: the note, an octave over it, and a thin twelfth above
+     that, each quieter and shorter than the last. */
+  function bell(f, o) {
+    o = o || {};
+    const dur = o.dur || 0.6, g = o.gain == null ? 0.1 : o.gain;
+    tone({ f: f, dur: dur, gain: g, at: o.at, type: 'sine',
+           open: f * 4, close: f * 1.2, send: o.send });
+    tone({ f: f * 2, dur: dur * 0.62, gain: g * 0.4, at: o.at, type: 'sine',
+           open: f * 7, close: f * 2, send: o.send });
+    tone({ f: f * 3.01, dur: dur * 0.34, gain: g * 0.17, at: o.at, type: 'triangle',
+           open: f * 9, close: f * 3, send: o.send });
+  }
+
+  /* Air: filtered noise, for whooshes, clicks and anything with a transient. */
+  function air(o) {
+    const c = ensure(); if (!c || !on || !hiss) return;
+    const t = c.currentTime + (o.at || 0);
+    const dur = o.dur || 0.2;
+    const peak = lvl(o.gain == null ? 0.06 : o.gain);
+    if (peak < 0.0002) return;
+
+    const src = c.createBufferSource();
+    src.buffer = hiss; src.loop = true;
+    const f = c.createBiquadFilter();
+    f.type = o.type || 'bandpass';
+    f.Q.value = o.q == null ? 1.1 : o.q;
+    f.frequency.setValueAtTime(o.f || 900, t);
+    if (o.to) f.frequency.exponentialRampToValueAtTime(o.to, t + dur * (o.bend || 1));
+
+    const g = c.createGain();
+    const atk = o.atk == null ? 0.02 : o.atk;
+    g.gain.setValueAtTime(0.00012, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + atk);
+    if (o.hold) g.gain.setValueAtTime(peak, t + atk + o.hold);
+    g.gain.exponentialRampToValueAtTime(0.00012, t + dur);
+
+    src.connect(f); f.connect(g); g.connect(master);
+    send(c, g, o.send == null ? 0.18 : o.send);
+    src.start(t); src.stop(t + dur + 0.06);
+  }
+
+  function send(c, from, amt) {
+    if (!wet || !amt) return;
+    const s = c.createGain(); s.gain.value = amt;
+    from.connect(s); s.connect(wet);
+  }
+
+  /* several notes, one after another */
+  function run(freqs, step, o) {
+    o = o || {};
+    freqs.forEach((f, i) => bell(f, {
+      at: (o.at || 0) + i * step,
+      dur: o.dur || 0.5,
+      gain: (o.gain == null ? 0.1 : o.gain) * (o.fade ? 1 - i * 0.1 : 1),
+      send: o.send
+    }));
+  }
+
   return {
     set enabled(v) { on = !!v; },
     get enabled() { return on; },
+    /* 0 to 1.4 — a projector in a hard room wants less than a laptop does */
+    set volume(v) { vol = Math.max(0, Math.min(1.4, Number(v) || 0)); },
+    get volume() { return vol; },
     unlock() { ensure(); },
-    tick()  { blip(880, 0.07, 'square', 0.05); },
-    urgent(){ blip(1240, 0.09, 'square', 0.09); },
-    start() { [523, 659, 784].forEach((f, i) => setTimeout(() => blip(f, 0.16, 'triangle', 0.11), i * 90)); },
-    right() { [784, 1047].forEach((f, i) => setTimeout(() => blip(f, 0.18, 'triangle', 0.12), i * 90)); },
-    wrong() { blip(180, 0.3, 'sawtooth', 0.09); },
-    times() { blip(300, 0.45, 'sawtooth', 0.1); },
-    win()   { [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => blip(f, 0.28, 'triangle', 0.13), i * 130)); },
+
+    /* ---- the scored game ---- */
+    tick() {
+      air({ f: 2600, to: 1500, dur: 0.035, gain: 0.05, q: 2.4, atk: 0.001, send: 0.05 });
+      tone({ f: N.C6, dur: 0.05, gain: 0.03, type: 'sine', atk: 0.002, send: 0.05 });
+    },
+    urgent() {
+      air({ f: 3400, to: 1900, dur: 0.045, gain: 0.085, q: 2.6, atk: 0.001, send: 0.08 });
+      tone({ f: N.E6, dur: 0.07, gain: 0.06, type: 'sine', atk: 0.002, send: 0.08 });
+    },
+    start() {
+      air({ f: 500, to: 3200, dur: 0.34, gain: 0.05, q: 0.7, atk: 0.16 });
+      run([N.C5, N.E5, N.G5], 0.1, { dur: 0.55, gain: 0.1 });
+      tone({ f: N.C3, dur: 0.7, gain: 0.07, type: 'triangle', at: 0.2, open: 700 });
+    },
+    right() {
+      run([N.G5, N.C6], 0.085, { dur: 0.62, gain: 0.1 });
+      tone({ f: N.C4, dur: 0.5, gain: 0.05, type: 'triangle', open: 900 });
+    },
+    /* not a buzzer — a short fall that gets out of the way */
+    wrong() {
+      tone({ f: N.A3, to: N.F3, dur: 0.3, gain: 0.075, type: 'triangle', open: 800, close: 280 });
+      tone({ f: N.A3 / 2, dur: 0.34, gain: 0.05, type: 'sine', open: 420 });
+    },
+    times() {
+      tone({ f: N.G3, to: N.C3, dur: 0.6, gain: 0.085, type: 'triangle', open: 900, close: 220 });
+      air({ f: 1400, to: 300, dur: 0.5, gain: 0.05, q: 0.9, atk: 0.03 });
+    },
+    win() {
+      run([N.C5, N.E5, N.G5, N.C6, N.E6], 0.11, { dur: 0.8, gain: 0.105 });
+      /* the chord the run resolves into, held under it */
+      [N.C4, N.E4, N.G4, N.C5].forEach(f =>
+        tone({ f: f, dur: 1.9, gain: 0.045, type: 'triangle', at: 0.44,
+               atk: 0.1, hold: 0.5, open: f * 4, close: f * 1.4, send: 0.4 }));
+    },
 
     /* ---- the big screen ----
-       A room hears these over a projector, so they are shorter and softer than
-       a game-show sting: enough to punctuate what just happened on the wall,
-       never enough to talk over the person presenting. */
-    pick()   { [523, 784].forEach((f, i) => setTimeout(() => blip(f, 0.13, 'triangle', 0.09), i * 70)); },
-    tock()   { blip(1500, 0.03, 'square', 0.035); },
-    lift()   { blip(720, 0.08, 'triangle', 0.055); },
-    /* a low roll under the pause before an answer is given */
-    roll(ms) {
-      const n = Math.max(3, Math.round((ms || 600) / 55));
-      for (let i = 0; i < n; i++) {
-        setTimeout(() => blip(150 + i * 4, 0.05, 'triangle', 0.035 + i * 0.002), i * 55);
-      }
+       A room hears these over a projector while somebody is talking, so they
+       are shorter and softer than a game-show sting: enough to punctuate what
+       just happened on the wall, never enough to talk over the presenter. */
+
+    /* a number has been called */
+    pick() {
+      air({ f: 1800, to: 700, dur: 0.07, gain: 0.05, q: 1.6, atk: 0.002, send: 0.1 });
+      bell(N.C5, { dur: 0.5, gain: 0.085 });
+      bell(N.G5, { dur: 0.6, gain: 0.075, at: 0.075 });
     },
-    sting() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => blip(f, 0.24, 'triangle', 0.115), i * 78)); },
-    dud()   { blip(196, 0.16, 'sine', 0.045); },
-    swish() {
-      const c = ensure(); if (!c || !on) return;
-      const o = c.createOscillator(), g = c.createGain();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(220, c.currentTime);
-      o.frequency.exponentialRampToValueAtTime(1100, c.currentTime + 0.22);
-      g.gain.setValueAtTime(0.0001, c.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.07, c.currentTime + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.26);
-      o.connect(g); g.connect(c.destination);
-      o.start(); o.stop(c.currentTime + 0.3);
+    /* the sweep passing a tile, or a wheel sector passing the pin */
+    tock() {
+      air({ f: 2200, to: 1100, dur: 0.028, gain: 0.055, q: 3.2, atk: 0.001, send: 0.06 });
+      tone({ f: N.G5, dur: 0.045, gain: 0.028, type: 'sine', atk: 0.002, send: 0.06 });
+    },
+    /* the bed under a spin: a riser that tightens as it goes */
+    spin(ms) {
+      const d = Math.max(0.3, (ms || 1200) / 1000);
+      air({ f: 300, to: 2400, dur: d, gain: 0.045, q: 1.4, atk: d * 0.6, send: 0.3 });
+      tone({ f: N.C3, to: N.G3, dur: d, gain: 0.05, type: 'triangle',
+             atk: d * 0.55, open: 500, close: 900, send: 0.25 });
+    },
+    /* the sweep stopping on a number */
+    land() {
+      tone({ f: N.C3, dur: 0.42, gain: 0.11, type: 'sine', atk: 0.004, open: 600, close: 120 });
+      air({ f: 2600, to: 600, dur: 0.16, gain: 0.07, q: 1.2, atk: 0.002, send: 0.3 });
+      bell(N.C5, { dur: 0.85, gain: 0.1, send: 0.42 });
+      bell(N.E5, { dur: 0.8, gain: 0.07, at: 0.035, send: 0.42 });
+      bell(N.G5, { dur: 0.95, gain: 0.06, at: 0.07, send: 0.42 });
+    },
+    /* a cover lifting off */
+    lift() {
+      air({ f: 700, to: 3000, dur: 0.17, gain: 0.05, q: 0.9, atk: 0.06, send: 0.28 });
+      bell(N.E5, { dur: 0.34, gain: 0.05 });
+    },
+    /* the held breath before an answer is given */
+    roll(ms) {
+      const d = Math.max(0.2, (ms || 600) / 1000);
+      tone({ f: N.C2, dur: d + 0.1, gain: 0.075, type: 'triangle',
+             atk: d * 0.75, open: 260, close: 200, send: 0.2 });
+      tone({ f: N.G2, dur: d + 0.08, gain: 0.05, type: 'sine', atk: d * 0.8, open: 300 });
+      air({ f: 240, to: 1500, dur: d, gain: 0.05, q: 1.6, atk: d * 0.8, send: 0.3 });
+    },
+    /* the answer landing: an arpeggio that resolves and is then held */
+    sting() {
+      run([N.C5, N.E5, N.G5, N.C6], 0.062, { dur: 0.75, gain: 0.1, send: 0.35 });
+      [N.C4, N.E4, N.G4].forEach(f =>
+        tone({ f: f, dur: 1.5, gain: 0.04, type: 'triangle', at: 0.2,
+               atk: 0.08, hold: 0.35, open: f * 4, close: f * 1.3, send: 0.45 }));
+      air({ f: 3000, to: 900, dur: 0.3, gain: 0.03, q: 0.8, atk: 0.01, send: 0.4 });
+    },
+    /* nothing there — a shrug, not a failure */
+    dud() {
+      tone({ f: N.E3, to: N.C3, dur: 0.26, gain: 0.055, type: 'sine', open: 600, close: 200 });
+    },
+    /* moving between things */
+    swish(ms) {
+      const d = Math.max(0.12, (ms || 260) / 1000);
+      air({ f: 420, to: 2800, dur: d, gain: 0.05, q: 0.75, atk: d * 0.42, send: 0.3 });
+      tone({ f: N.G4, to: N.G5, dur: d * 0.8, gain: 0.025, type: 'sine',
+             atk: d * 0.4, open: 3000, close: 1400, send: 0.3 });
     }
   };
 })();
@@ -4542,7 +4882,7 @@ window.QA = {
   $, $$, esc, clamp, uid, roomCode, secs, mmss, nf, now,
   shape, ico, markSVG, ACOLORS, AHEX, TEAM_PALETTE,
   countUp, flip, codeLetters, reduced,
-  shrinkImage, readFileAsDataURL, IMG_BUDGET,
+  shrinkImage, loadImage, readFileAsDataURL, IMG_BUDGET,
   toast, modal, LS, SS, Sound, Confetti,
   LocalBus, PeerHost, PeerClient, RelayBus, Net, PEER_PREFIX, findRelay
 };
@@ -8687,6 +9027,249 @@ Q.PuzzleUI = {
 })();
 
 /* ============================================================================
+   Quiz Arena — stage branding
+
+   The big screen goes up on a wall in front of colleagues, so it should look
+   like it belongs to the company running the meeting rather than to this app.
+   That is three things and no more: a palette, a mark, and the words.
+
+   Two decisions worth knowing about.
+
+   The palette is written into a <style> element rather than set as inline
+   properties on #s-screen. That is not tidiness — the audience window is built
+   by copying this page's <style> blocks, so a rule written this way travels
+   with it and inline properties would not.
+
+   The palette is derived from two colours rather than listed out. A theme is
+   an accent and a ground; everything else — surfaces, rules, dimmed text — is
+   that ground mixed toward white by a fixed amount. Deriving it means a colour
+   picked out of a brand guide produces a whole coherent screen, and it lets
+   the accent be pushed until it actually reads: light enough on the dark stage,
+   dark enough under white button text. A theme you can set is no use if it can
+   be set to something illegible.
+
+   There is no company mark in this file and there will not be one. A logo is
+   the company's, and anyone inside it already has the real file — so this takes
+   an upload. What you put there is your call; make sure you have the right to
+   use it, particularly for anything beyond your own meeting room.
+   ========================================================================= */
+(function () {
+'use strict';
+const Q = window.QA;
+const { $, esc, LS } = Q;
+
+const KEY = 'qa:brand:v1';
+
+/* Each theme is an accent and a ground. The third value is a second wash of
+   light across the stage, which stops a large dark wall looking like a dead
+   rectangle on a projector. */
+const THEMES = [
+  { id: 'arena',     name: 'Arena',     accent: '#6D4BFF', ground: '#101128', wash: '#1F2A5E' },
+  { id: 'boardroom', name: 'Boardroom', accent: '#C9A227', ground: '#0B1B33', wash: '#123050' },
+  { id: 'midnight',  name: 'Midnight',  accent: '#00C2A8', ground: '#07110F', wash: '#0B2B33' },
+  { id: 'slate',     name: 'Slate',     accent: '#3B82F6', ground: '#13161D', wash: '#1C2A3D' },
+  { id: 'claret',    name: 'Claret',    accent: '#E8623C', ground: '#1A0F14', wash: '#3A1720' }
+];
+
+const DEF = { theme: 'arena', accent: '', ground: '', logo: '', mark: '' };
+let B = Object.assign({}, DEF);
+
+/* ------------------------------------------------------------ colour maths */
+function rgb(h) {
+  h = String(h || '').trim().replace('#', '');
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  if (!/^[0-9a-f]{6}$/i.test(h)) return null;
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+const hex = c => '#' + c.map(v => Math.max(0, Math.min(255, Math.round(v)))
+  .toString(16).padStart(2, '0')).join('');
+const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+const WHITE = [255, 255, 255], BLACK = [0, 0, 0];
+
+/* WCAG relative luminance, so "readable" is a measurement and not a guess */
+function lum(c) {
+  const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+}
+const contrast = (a, b) => {
+  const x = lum(a), y = lum(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+};
+
+/* Walk a colour toward white (or black) until it reads against the ground it
+   sits on. Twenty steps of 5% is finer than the eye and always terminates. */
+function readable(c, against, want, towards) {
+  let out = c;
+  for (let i = 0; i < 20 && contrast(out, against) < want; i++) {
+    out = mix(c, towards, (i + 1) * 0.05);
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ state */
+function theme() {
+  return THEMES.filter(t => t.id === B.theme)[0] || THEMES[0];
+}
+function accent() { return rgb(B.accent) || rgb(theme().accent); }
+function ground() { return rgb(B.ground) || rgb(theme().ground); }
+function wash() {
+  /* a custom ground has no wash of its own, so lift one out of it */
+  if (B.ground && rgb(B.ground)) return mix(rgb(B.ground), accent(), 0.22);
+  return rgb(theme().wash);
+}
+
+function load() {
+  const s = LS.get(KEY, null);
+  B = Object.assign({}, DEF, s && typeof s === 'object' ? s : {});
+  if (!THEMES.some(t => t.id === B.theme)) B.theme = DEF.theme;
+  return B;
+}
+function save() { LS.set(KEY, B); }
+function set(patch) { Object.assign(B, patch); save(); }
+
+/* ------------------------------------------------------------------- CSS */
+function css() {
+  const g = ground(), a = accent(), w = wash();
+  const up = t => hex(mix(g, WHITE, t));
+
+  /* on the stage the accent has to carry text on a dark ground */
+  const sAcc = hex(readable(a, g, 5.5, WHITE));
+  const sAcc2 = hex(mix(readable(a, g, 5.5, WHITE), WHITE, 0.3));
+  /* in the daylight app the accent is text on paper, so it is darkened until
+     it reads there */
+  const dAcc = hex(readable(a, WHITE, 4.6, BLACK));
+  const dAcc2 = hex(mix(readable(a, WHITE, 4.6, BLACK), WHITE, 0.17));
+  /* as a button fill it keeps its true colour, and the ink on top is whichever
+     of black or white stands further from it — which is how a gold brand ends
+     up gold with dark lettering rather than a drab olive with white */
+  const onBrand = contrast(a, WHITE) >= contrast(a, BLACK) ? '#ffffff' : hex(mix(a, BLACK, 0.84));
+  const dSoft = hex(mix(a, WHITE, 0.9));
+  const dLine = hex(mix(a, WHITE, 0.62));
+
+  return [
+    /* the whole app follows the accent, so the host's window and the room's
+       window are plainly the same piece of software */
+    ':root{',
+    '  --brand:' + dAcc + '; --brand-2:' + dAcc2 + ';',
+    '  --brand-soft:' + dSoft + '; --brand-line:' + dLine + ';',
+    '  --accent-rgb:' + a.map(Math.round).join(',') + ';',
+    '  --brand-fill:' + hex(a) + '; --brand-fill-2:' + hex(mix(a, WHITE, 0.16)) + ';',
+    '  --on-brand:' + onBrand + ';',
+    '  --ring:0 0 0 3px ' + hex(a) + '33;',
+    '}',
+    '#s-screen{',
+    '  --ink:' + up(0.95) + '; --ink-2:' + up(0.78) + ';',
+    '  --muted:' + up(0.56) + '; --faint:' + up(0.4) + ';',
+    '  --surface:' + up(0.09) + '; --surface-2:' + up(0.14) + ';',
+    '  --sunken:' + up(0.045) + ';',
+    '  --line:' + up(0.17) + '; --line-2:' + up(0.3) + ';',
+    '  --brand:' + sAcc + '; --brand-2:' + sAcc2 + ';',
+    '  --brand-soft:' + up(0.13) + '; --brand-line:' + hex(mix(g, a, 0.5)) + ';',
+    /* the stage's own accent, lifted until it reads on the dark ground — every
+       glow and wash on the screen is mixed from these three channels */
+    '  --accent-rgb:' + readable(a, g, 5.5, WHITE).map(Math.round).join(',') + ';',
+    '  --num:' + hex(mix(readable(a, g, 5.5, WHITE), WHITE, 0.72)) + ';',
+    '  color:var(--ink);',
+    '  background:',
+    /* the glow at the top follows the theme's own second colour, lifted a
+       little toward the accent — a big dark rectangle on a projector reads as
+       a dead screen without it */
+    '    radial-gradient(1100px 760px at 50% 24%, ' + hex(mix(mix(g, w, 0.5), a, 0.12)) + ' 0%, ' + hex(g) + '00 66%),',
+    '    radial-gradient(900px 700px at 88% 94%, ' + hex(w) + ' 0%, ' + hex(w) + '00 62%),',
+    '    ' + hex(g) + ';',
+    '}'
+  ].join('\n');
+}
+
+/* Write the rule into a document — this one, or the audience window we built.
+   It goes last in <head> so it beats the stylesheet's own #s-screen block on
+   order rather than needing to out-specify it. */
+function apply(doc) {
+  const d = doc || document;
+  try {
+    let el = d.getElementById('qa-brand');
+    if (!el) {
+      el = d.createElement('style');
+      el.id = 'qa-brand';
+      (d.head || d.documentElement).appendChild(el);
+    }
+    el.textContent = css();
+    paintMark(d);
+  } catch (e) {}
+}
+
+/* ------------------------------------------------------------------ mark */
+function markHTML(big) {
+  if (!B.logo && !B.mark) return '';
+  return '<div class="stage-mark' + (big ? ' big' : '') + '">' +
+    (B.logo ? '<img src="' + esc(B.logo) + '" alt="">' : '') +
+    (B.mark ? '<span>' + esc(B.mark) + '</span>' : '') + '</div>';
+}
+function paintMark(doc) {
+  const d = doc || document;
+  try {
+    const slot = d.getElementById('screen-brand');
+    if (slot) slot.innerHTML = markHTML(false);
+    const bar = d.getElementById('show-brand');
+    if (bar) bar.innerHTML = markHTML(false);
+  } catch (e) {}
+}
+
+/* ------------------------------------------------------------------ logo
+   The builder's image shrinker flattens onto white, which is right for a
+   photograph in a question and exactly wrong for a logo: the transparency is
+   the thing that lets a mark sit on a dark stage. So logos take their own
+   path — PNG on a transparent canvas, and an SVG passed straight through
+   because it is already small and scales better than anything we could
+   produce from it. */
+const LOGO_BUDGET = 220 * 1024;   /* it lives in this browser, never on a wire */
+const LOGO_EDGE = 640;
+
+function shrinkLogo(src, type) {
+  if (/^image\/svg/.test(type || '') || /^data:image\/svg/.test(src)) {
+    if (src.length <= LOGO_BUDGET) return Promise.resolve(src);
+    return Promise.reject(new Error('That SVG is very large — try a simpler export'));
+  }
+  return Q.loadImage(src).then(img => {
+    const w0 = img.naturalWidth, h0 = img.naturalHeight;
+    if (!w0 || !h0) throw new Error('That image has no size');
+    const cv = document.createElement('canvas');
+    const cx = cv.getContext('2d');
+    let scale = Math.min(1, LOGO_EDGE / Math.max(w0, h0));
+    const draw = sc => {
+      cv.width = Math.max(1, Math.round(w0 * sc));
+      cv.height = Math.max(1, Math.round(h0 * sc));
+      cx.clearRect(0, 0, cv.width, cv.height);       /* keep the alpha */
+      cx.drawImage(img, 0, 0, cv.width, cv.height);
+      return cv.toDataURL('image/png');
+    };
+    let out = draw(scale);
+    while (out.length > LOGO_BUDGET && scale > 0.15) { scale *= 0.75; out = draw(scale); }
+    if (out.length > LOGO_BUDGET) throw new Error('That image is too detailed — try a PNG of the logo on its own');
+    return out;
+  });
+}
+
+/* The accent belongs to the whole app, not only the stage, so the host's
+   window and the room's are plainly the same piece of software. Applying it
+   here means that is true from the first paint, whether or not anyone ever
+   opens the big screen. */
+load();
+apply();
+
+Q.Brand = {
+  THEMES: THEMES,
+  load: load, save: save, set: set, apply: apply, css: css,
+  markHTML: markHTML, shrinkLogo: shrinkLogo,
+  get: () => B,
+  theme: theme,
+  /* the two colours in force, for the pickers to open on */
+  accentHex: () => hex(accent()),
+  groundHex: () => hex(ground())
+};
+})();
+
+/* ============================================================================
    Quiz Arena — the big screen
 
    One machine, nobody signing in, nothing scored. It runs as two views:
@@ -8719,8 +9302,26 @@ const TOOLS = [
   { id: 'wheel', name: 'Spin the wheel' },
   { id: 'reveal', name: 'Reveal a picture' }
 ];
-const SPIN_MS = 4400;
+const SPIN_MS = 4400;      /* the wheel */
+const SWEEP_MS = 1500;     /* the spotlight running round the board */
+const LAND_MS = 760;       /* the tile turning over once it stops */
 const PIECES = 16;
+
+/* Every line the room reads is here rather than in the markup, because the
+   words are the first thing anyone wants to change: "Pick a number" is fine
+   for a quiz night and wrong for a town hall. {n} in the wheel line is the
+   number of names on it. */
+const WORDS = {
+  board:    'Pick a number',
+  call:     'Someone call one out.',
+  done:     'Every number has been opened.',
+  numLab:   'Number',
+  answer:   'Answer',
+  wheel:    'Spin the wheel',
+  wheelSub: '{n} on the wheel \u2014 whoever it lands on is up.',
+  reveal:   'What is this?',
+  ready:    'Ready'
+};
 
 const SH = {
   role: 'control',
@@ -8734,9 +9335,13 @@ const SH = {
   rot: 0, spinFrom: 0, spinning: false, winner: -1, spinAt: 0,
   pic: -1, gone: Object.create(null),
   sound: true, choices: true, just: 0, justPiece: -1,
+  vol: 1, spinPick: true, spin: null,
+  words: null,
   remote: null,
   lastKey: ''
 };
+
+const words = () => Object.assign({}, WORDS, SH.words || {});
 
 const questions = () => (Q.Build.getConfig().questions || []).filter(q => q.kind !== 'pz');
 const pictures = () => questions().filter(q => q.image);
@@ -8775,7 +9380,8 @@ const Link = (function () {
 /* ------------------------------------------------------------- persistence */
 function store() {
   LS.set(KEY, { sig: SH.sig, order: SH.order, used: SH.used, names: SH.names,
-                tool: SH.tool, sound: SH.sound, choices: SH.choices });
+                tool: SH.tool, sound: SH.sound, choices: SH.choices,
+                vol: SH.vol, spinPick: SH.spinPick, words: SH.words });
 }
 function load() {
   const qs = questions();
@@ -8784,6 +9390,9 @@ function load() {
   SH.names = (saved && Array.isArray(saved.names)) ? saved.names : [];
   SH.sound = !saved || saved.sound !== false;
   SH.choices = !saved || saved.choices !== false;
+  SH.spinPick = !saved || saved.spinPick !== false;
+  SH.vol = saved && Number.isFinite(saved.vol) ? Math.max(0, Math.min(1.4, saved.vol)) : 1;
+  SH.words = (saved && saved.words && typeof saved.words === 'object') ? saved.words : null;
   if (saved && TOOLS.some(t => t.id === saved.tool)) SH.tool = saved.tool;
   if (saved && saved.sig === sig && Array.isArray(saved.order) && saved.order.length === qs.length) {
     SH.sig = sig; SH.order = saved.order.slice();
@@ -8817,6 +9426,8 @@ function viewNow() {
   return {
     sig: SH.sig,
     tool: SH.tool,
+    w: words(),
+    spin: SH.spin,
     title: Q.Build.getConfig().title || 'Untitled quiz',
     tiles: SH.order.map((qi, k) => ({ n: k + 1, done: !!SH.used[qi] })),
     total: qs.length,
@@ -8835,6 +9446,9 @@ function viewNow() {
 function open(role, tool) {
   SH.role = role === 'screen' ? 'screen' : 'control';
   load();
+  Q.Brand.load();
+  Q.Brand.apply();
+  SH.spin = null;
   if (tool && TOOLS.some(t => t.id === tool)) SH.tool = tool;
   SH.at = -1; SH.shown = false; SH.pic = -1; SH.gone = Object.create(null);
 
@@ -8847,6 +9461,7 @@ function open(role, tool) {
   }
   Q.Host.showScreen('s-show');
   Q.Sound.enabled = SH.sound;
+  Q.Sound.volume = SH.vol;
   $('#show-title').textContent = Q.Build.getConfig().title || 'Untitled quiz';
   paintTools();
   paintSound();
@@ -8923,8 +9538,9 @@ function paintWaiting() {
   const stage = $('#screen-stage');
   if (!stage) return;
   stage.innerHTML =
+    Q.Brand.markHTML(true) +
     '<div class="show-head">' +
-      '<h1>Ready</h1>' +
+      '<h1>' + esc(words().ready) + '</h1>' +
       '<p class="waitdots">Waiting for the control window</p>' +
     '</div>';
 }
@@ -8934,42 +9550,124 @@ function paintNumbers(v, stage, live) {
   if (!v.total) { emptyCard(stage, 'There are no questions yet', 'The board puts one behind each number.', live); return; }
   if (v.at >= 0) { paintQuestion(v, stage, live); return; }
 
+  const w = v.w || WORDS;
   const left = v.tiles.filter(t => !t.done).length;
   const cols = Math.min(6, Math.max(3, Math.ceil(Math.sqrt(v.total))));
   const rows = Math.ceil(v.total / cols);
+  const spinning = !!v.spin;
   stage.innerHTML =
     '<div class="show-head">' +
-      '<h1>Pick a number</h1>' +
-      '<p>' + (left ? 'Someone call one out.' : 'Every number has been opened.') + '</p>' +
+      '<h1>' + esc(w.board) + '</h1>' +
+      '<p>' + esc(left ? w.call : w.done) + '</p>' +
     '</div>' +
-    '<div class="pick-grid big" style="--cols:' + cols + ';--rows:' + rows + '">' +
+    '<div class="pick-grid big' + (spinning ? ' sweeping' : '') + '" style="--cols:' + cols + ';--rows:' + rows + '">' +
       v.tiles.map((t, i) =>
         '<button class="pick-tile' + (t.done ? ' done' : '') +
           (t.done && v.just === t.n ? ' just-done' : '') + '" type="button"' +
           ' style="--i:' + i + '"' +
-          (live && !t.done ? ' data-n="' + (t.n - 1) + '"' : ' disabled') +
-          ' aria-label="Number ' + t.n + (t.done ? ', already opened' : '') + '">' +
+          (live && !t.done && !spinning ? ' data-n="' + (t.n - 1) + '"' : ' disabled') +
+          ' aria-label="' + esc(w.numLab) + ' ' + t.n + (t.done ? ', already opened' : '') + '">' +
           '<span class="n">' + t.n + '</span>' +
           (t.done ? '<span class="sub">opened</span>' : '') +
         '</button>').join('') +
     '</div>' +
-    (live && !left
+    (live && !left && !spinning
       ? '<div class="show-actions"><button class="btn primary" id="show-again">' +
         ico('refresh') + 'Shuffle and start over</button></div>'
       : '');
+
+  /* both windows run the sweep themselves off the shared timestamp */
+  if (spinning) {
+    const grid = stage.querySelector('.pick-grid');
+    if (grid) runSweep(grid, v, live);
+  }
+
   if (!live) return;
   stage.querySelectorAll('[data-n]').forEach(el => {
-    el.onclick = () => {
-      SH.at = SH.order[Number(el.dataset.n)];
-      SH.shown = false; SH.just = 0;
-      SH.used[SH.at] = 1;
-      sfx('pick');
-      setTimeout(() => sfx('swish'), 330);
-      store(); render();
-    };
+    el.onclick = () => openTile(Number(el.dataset.n));
   });
   const again = $('#show-again');
   if (again) again.onclick = startOver;
+}
+
+/* A number is called from the floor and the host taps it. Between those two
+   moments the board runs a spotlight round itself and slows into the tile that
+   was asked for. Nothing is being chosen — the number was already called — so
+   it decelerates hard and never overshoots: it reads as the board finding the
+   number, not picking one. */
+function openTile(pos) {
+  const qi = SH.order[pos];
+  if (qi == null) return;
+  const go = () => {
+    SH.spin = null;
+    SH.at = qi; SH.shown = false; SH.just = 0;
+    SH.used[qi] = 1;
+    store(); render();
+  };
+  if (!SH.spinPick || reduced()) {
+    sfx('pick');
+    setTimeout(() => sfx('swish'), 330);
+    go();
+    return;
+  }
+  /* a beat before it starts, so both windows have painted the board first */
+  SH.spin = { to: pos, at: Date.now() + 60 };
+  SH.just = 0;
+  render();
+  sfx('spin', SWEEP_MS);
+  setTimeout(go, 60 + SWEEP_MS + LAND_MS);
+}
+
+function runSweep(grid, v, live) {
+  const tiles = Array.prototype.slice.call(grid.querySelectorAll('.pick-tile'));
+  const n = tiles.length;
+  if (!n) return;
+  const target = Math.max(0, Math.min(n - 1, v.spin.to | 0));
+  /* enough laps that a small board still feels like it travelled; the target
+     is added on the end so the last step always lands on it exactly */
+  const steps = (n <= 6 ? 3 : 2) * n + target;
+  let last = -1, lastTick = 0, landed = false;
+
+  (function frame() {
+    if (!grid.isConnected) return;
+    const t = Math.min(1, (Date.now() - v.spin.at) / SWEEP_MS);
+    if (t < 0) { requestAnimationFrame(frame); return; }
+    const idx = Math.min(steps, Math.floor(ease(t) * steps)) % n;
+    if (idx !== last) {
+      if (last >= 0) tiles[last].classList.remove('spot');
+      tiles[idx].classList.add('spot');
+      last = idx;
+      const now = Date.now();
+      /* at full speed the tiles fly past faster than a click can be heard, so
+         thin the ticks out; the rhythm opens up on its own as it slows */
+      if (live && now - lastTick > 45) { lastTick = now; sfx('tock'); }
+    }
+    if (t < 1) { requestAnimationFrame(frame); return; }
+    if (landed) return;
+    landed = true;
+    grid.classList.remove('sweeping');
+    grid.classList.add('landing');
+    tiles[target].classList.remove('spot');
+    tiles[target].classList.add('landed');
+    ringOff(grid, tiles[target]);
+    if (live) sfx('land');
+  })();
+}
+
+/* a ring thrown off the tile the spotlight stopped on */
+function ringOff(grid, tile) {
+  try {
+    const d = grid.ownerDocument;
+    const el = d.createElement('div');
+    el.className = 'spot-ring';
+    const g = grid.getBoundingClientRect(), r = tile.getBoundingClientRect();
+    el.style.left = (r.left - g.left) + 'px';
+    el.style.top = (r.top - g.top) + 'px';
+    el.style.width = r.width + 'px';
+    el.style.height = r.height + 'px';
+    grid.appendChild(el);
+    setTimeout(() => { try { el.parentNode.removeChild(el); } catch (e) {} }, 900);
+  } catch (e) {}
 }
 
 /* Splitting on spaces lets the line arrive a word at a time, which reads on a
@@ -8980,6 +9678,7 @@ function wordsOf(text) {
 }
 
 function paintQuestion(v, stage, live) {
+  const w = v.w || WORDS;
   const q = questions()[v.at];
   if (!q) { emptyCard(stage, 'That question is no longer here', '', live); return; }
   const fresh = !v.shown;
@@ -9005,7 +9704,7 @@ function paintQuestion(v, stage, live) {
     /* no options on the wall: the room answers out loud and the answer lands
        on its own when the host calls for it */
     : (v.shown
-        ? '<div class="answer-solo"><span class="lab">Answer</span>' +
+        ? '<div class="answer-solo"><span class="lab">' + esc(w.answer) + '</span>' +
           '<b class="val">' + esc(q.options[q.correct]) + '</b>' +
           '<span class="ansmark">' + ico('check') + '</span></div>'
         : '');
@@ -9016,7 +9715,7 @@ function paintQuestion(v, stage, live) {
         ? '<div class="q-open" aria-hidden="true"><span class="ring"></span>' +
           '<span class="ring two"></span><span class="big-n">' + v.tileNo + '</span></div>'
         : '') +
-      '<span class="qno">Number ' + v.tileNo + '</span>' +
+      '<span class="qno">' + esc(w.numLab) + ' ' + v.tileNo + '</span>' +
       (q.image ? '<img class="show-img" src="' + esc(q.image) + '" alt="">' : '') +
       '<h2 class="show-text">' + (fresh ? wordsOf(q.text) : esc(q.text)) + '</h2>' +
       answers +
@@ -9064,9 +9763,10 @@ function startOver() {
 /* -------------------------------------------------------- spin the wheel */
 function paintWheel(v, stage, live) {
   const items = v.wheel.items;
+  const w = v.w || WORDS;
   stage.innerHTML =
-    '<div class="show-head"><h1>Spin the wheel</h1>' +
-      '<p>' + items.length + ' on the wheel &mdash; whoever it lands on is up.</p></div>' +
+    '<div class="show-head"><h1>' + esc(w.wheel) + '</h1>' +
+      '<p>' + esc(String(w.wheelSub).replace(/\{n\}/g, items.length)) + '</p></div>' +
     '<div class="wheel-wrap">' +
       '<div class="wheel-hold">' +
         '<div class="wheel-pin"></div>' +
@@ -9223,9 +9923,10 @@ function paintReveal(v, stage, live) {
   }
   const idx = (v.pic >= 0 && v.pic < pics.length) ? v.pic : 0;
   const q = pics[idx];
+  const w = v.w || WORDS;
   const goneN = Object.keys(v.gone || {}).length;
   stage.innerHTML =
-    '<div class="show-head"><h1>What is this?</h1>' +
+    '<div class="show-head"><h1>' + esc(w.reveal) + '</h1>' +
       '<p>' + (goneN >= PIECES ? 'All uncovered.' : (PIECES - goneN) + ' pieces still covering it') + '</p></div>' +
     '<div class="reveal-hold">' +
       '<img src="' + esc(q.image) + '" alt="">' +
@@ -9316,12 +10017,29 @@ function screenStage() {
     return scrStage;
   } catch (e) { return null; }
 }
+function screenDoc() {
+  const st = screenStage();
+  try { return st ? st.ownerDocument : null; } catch (e) { return null; }
+}
+
+/* The palette and the mark are re-applied everywhere at once: this window, the
+   window we wrote, and — for one somebody opened by hand — a nudge to re-read
+   it out of storage for itself. */
+function brandChanged() {
+  Q.Brand.save();
+  Q.Brand.apply();
+  const d = screenDoc();
+  if (d) Q.Brand.apply(d);
+  Link.send({ t: 'brand' });
+}
 
 function screenHTML() {
   /* every <style> this page carries, in order — they are all inline, so the
      copy is complete and offline by construction */
+  /* outerHTML rather than the text, so the brand rule keeps its id and can be
+     found and rewritten in there when the colours change */
   let css = '';
-  $$('style').forEach(s => { css += '<style>' + s.textContent + '</style>'; });
+  $$('style').forEach(s => { css += s.outerHTML; });
   const sprite = $('#qa-sprite');
   return '<!doctype html><html lang="en" style="background:#101128">' +
     '<head><meta charset="utf-8">' +
@@ -9329,11 +10047,12 @@ function screenHTML() {
     '<title>' + esc(Q.Build.getConfig().title || 'Quiz Arena') + ' — screen</title>' +
     css +
     /* the app's own body rule paints daylight; the stage is a dark room */
-    '<style>html,body{margin:0;background:#101128}body{overflow:hidden}' +
-    '#s-screen{height:100dvh}</style>' +
+    '<style>html,body{margin:0;background:' + Q.Brand.groundHex() + '}' +
+    'body{overflow:hidden}#s-screen{height:100dvh}</style>' +
     '</head><body>' +
     (sprite ? sprite.outerHTML : '') +
     '<section class="screen on" id="s-screen">' +
+      '<div class="stage-brandbar" id="screen-brand"></div>' +
       '<div class="show-stage screen-stage" id="screen-stage"></div>' +
     '</section></body></html>';
 }
@@ -9363,6 +10082,7 @@ function openScreen() {
   }
 
   scr = w; scrStage = stage;
+  Q.Brand.apply(w.document);
   /* a presenter's window wants to be full screen, and a double-click is the
      one gesture that needs no chrome to discover */
   try {
@@ -9398,9 +10118,193 @@ function paintScreenBtn() {
   const b = $('#show-screen');
   if (!b) return;
   const on = !!screenStage();
+  /* swap the two rather than adding ghost on top: .ghost clears the
+     background but not .primary's white lettering, which would leave the
+     button white on white */
+  b.classList.toggle('primary', !on);
   b.classList.toggle('ghost', on);
   b.innerHTML = ico(on ? 'check' : 'laptop') + (on ? 'Screen is open' : 'Open the screen');
   b.title = on ? 'The audience window is open — click to bring it forward' : 'Open the audience window';
+}
+
+/* ========================================================== stage settings
+   One sheet for the three things a host actually wants to change before they
+   put this on a wall: what it says, what it looks like, and how loud it is.
+   Everything applies as you touch it rather than on a Save — a colour you
+   cannot see until you commit to it is not a colour you can choose. */
+function stageSetup() {
+  const w = words();
+  const B = Q.Brand.get();
+  const field = (k, lab, wide) =>
+    '<div class="field' + (wide ? ' wide' : '') + '">' +
+      '<label for="sw-' + k + '">' + esc(lab) + '</label>' +
+      '<input class="inp" id="sw-' + k + '" maxlength="90" value="' + esc(w[k]) +
+      '" placeholder="' + esc(WORDS[k]) + '"></div>';
+
+  modal(
+    '<h2 style="font-size:22px">The stage</h2>' +
+    '<p class="dim" style="font-size:13.5px;margin-top:6px;line-height:1.6">' +
+      'This is the screen’s, not the quiz’s — it stays put when you change the questions, ' +
+      'and it is kept in this browser only.</p>' +
+
+    '<div class="set-sec"><h3>Words on the screen</h3><div class="set-rows">' +
+      field('board', 'Board heading') +
+      field('call', 'The line under it') +
+      field('done', 'When every number is gone', true) +
+      field('numLab', 'What one is called') +
+      field('answer', 'Label on the answer') +
+      field('wheel', 'Wheel heading') +
+      field('ready', 'While the screen waits') +
+      field('wheelSub', 'The line under the wheel — {n} is how many names are on it', true) +
+      field('reveal', 'Picture heading', true) +
+    '</div>' +
+    '<button class="btn ghost sm" id="sw-reset" style="margin-top:12px">' +
+      ico('undo') + 'Back to the defaults</button></div>' +
+
+    '<div class="set-sec"><h3>Brand</h3>' +
+      '<div class="theme-row" id="sw-themes"></div>' +
+      '<div class="set-rows" style="margin-top:13px">' +
+        '<div class="field"><label for="sw-accent">Accent</label>' +
+          '<input type="color" class="inp" id="sw-accent" value="' + Q.Brand.accentHex() + '"></div>' +
+        '<div class="field"><label for="sw-ground">Behind the screen</label>' +
+          '<input type="color" class="inp" id="sw-ground" value="' + Q.Brand.groundHex() + '"></div>' +
+        '<div class="field wide"><label for="sw-mark">Wording beside the logo</label>' +
+          '<input class="inp" id="sw-mark" maxlength="44" value="' + esc(B.mark || '') +
+          '" placeholder="your team, department or event"></div>' +
+      '</div>' +
+      '<div class="logo-row" style="margin-top:13px">' +
+        '<div class="logo-prev dark" id="sw-prev"></div>' +
+        '<button class="btn sm" id="sw-pick">' + ico('upload') + 'Use a logo</button>' +
+        '<button class="btn ghost sm" id="sw-clear">Remove</button>' +
+        '<input type="file" accept="image/*" id="sw-file" class="hide">' +
+      '</div>' +
+      '<p class="dim" style="font-size:12.5px;margin-top:10px;line-height:1.6">' +
+        'An SVG or a PNG with a transparent background sits best on a dark screen. ' +
+        'It is stored in this browser and goes nowhere else. Whatever you put here is ' +
+        'your call — make sure you have the right to use it.</p>' +
+    '</div>' +
+
+    '<div class="set-sec"><h3>Sound &amp; motion</h3>' +
+      '<div class="vol-row">' +
+        '<span class="dim" style="font-size:13px;min-width:52px">Volume</span>' +
+        '<input type="range" id="sw-vol" min="0" max="140" step="10" value="' + Math.round(SH.vol * 100) + '">' +
+        '<span class="mono num" id="sw-volv" style="min-width:44px;text-align:right">' +
+          Math.round(SH.vol * 100) + '%</span>' +
+        '<button class="btn ghost xs" id="sw-test">Try it</button>' +
+      '</div>' +
+      '<label class="switch" style="margin-top:14px">' +
+        '<input type="checkbox" id="sw-spin"' + (SH.spinPick ? ' checked' : '') + '>' +
+        '<span class="track"></span>' +
+        '<span style="font-size:13.5px">Run the board before a number opens</span></label>' +
+      '<p class="dim" style="font-size:12.5px;margin-top:7px;line-height:1.6">' +
+        'A spotlight travels the board and slows into the number that was called, ' +
+        'then the tile turns over. Off, the question opens straight away.</p>' +
+    '</div>' +
+
+    '<div class="row" style="justify-content:flex-end;margin-top:17px">' +
+      '<button class="btn primary" data-close>Done</button></div>',
+
+    (box, close) => {
+      /* ---- words ---- */
+      const keys = Object.keys(WORDS);
+      const readWords = () => {
+        const out = {};
+        keys.forEach(k => {
+          const el = $('#sw-' + k, box);
+          if (!el) return;
+          const val = el.value.trim();
+          if (val && val !== WORDS[k]) out[k] = val;
+        });
+        SH.words = Object.keys(out).length ? out : null;
+        store(); render();
+      };
+      keys.forEach(k => {
+        const el = $('#sw-' + k, box);
+        if (el) el.oninput = readWords;
+      });
+      $('#sw-reset', box).onclick = () => {
+        SH.words = null;
+        keys.forEach(k => { const el = $('#sw-' + k, box); if (el) el.value = WORDS[k]; });
+        store(); render();
+        toast('Back to the default wording', 'ok');
+      };
+
+      /* ---- brand ---- */
+      const prev = $('#sw-prev', box);
+      const paintPrev = () => {
+        const lg = Q.Brand.get().logo;
+        prev.innerHTML = lg
+          ? '<img src="' + esc(lg) + '" alt="">'
+          : '<span class="faint" style="font-size:12px">No logo yet</span>';
+        $('#sw-clear', box).disabled = !lg;
+      };
+      const paintThemes = () => {
+        $('#sw-themes', box).innerHTML = Q.Brand.THEMES.map(t =>
+          '<button class="theme-chip" data-t="' + t.id + '" aria-pressed="' +
+          (Q.Brand.get().theme === t.id ? 'true' : 'false') + '">' +
+          '<span class="sw" style="background:linear-gradient(135deg,' + t.accent + ' 48%,' + t.ground + ' 52%)"></span>' +
+          esc(t.name) + '</button>').join('');
+        $('#sw-themes', box).querySelectorAll('[data-t]').forEach(el => {
+          el.onclick = () => {
+            /* picking a theme drops any hand-mixed colours — that is what
+               picking a theme means */
+            Q.Brand.set({ theme: el.dataset.t, accent: '', ground: '' });
+            $('#sw-accent', box).value = Q.Brand.accentHex();
+            $('#sw-ground', box).value = Q.Brand.groundHex();
+            paintThemes();
+            brandChanged();
+            sfx('swish');
+          };
+        });
+      };
+      paintThemes();
+      paintPrev();
+
+      $('#sw-accent', box).oninput = e => { Q.Brand.set({ accent: e.target.value }); paintThemes(); brandChanged(); };
+      $('#sw-ground', box).oninput = e => { Q.Brand.set({ ground: e.target.value }); paintThemes(); brandChanged(); };
+      $('#sw-mark', box).oninput = e => { Q.Brand.set({ mark: e.target.value.trim() }); brandChanged(); };
+
+      const file = $('#sw-file', box);
+      $('#sw-pick', box).onclick = () => file.click();
+      $('#sw-clear', box).onclick = () => {
+        Q.Brand.set({ logo: '' });
+        paintPrev(); brandChanged();
+      };
+      file.onchange = () => {
+        const f = file.files && file.files[0];
+        file.value = '';
+        if (!f) return;
+        prev.innerHTML = '<span class="qimg-busy">' + ico('hourglass') + '</span>';
+        Q.readFileAsDataURL(f)
+          .then(src => Q.Brand.shrinkLogo(src, f.type))
+          .then(out => {
+            Q.Brand.set({ logo: out });
+            paintPrev(); brandChanged();
+            toast('Logo set — it shows on the screen', 'ok');
+          })
+          .catch(err => {
+            paintPrev();
+            toast(err.message || 'That image would not load', 'bad');
+          });
+      };
+
+      /* ---- sound & motion ---- */
+      const vv = $('#sw-volv', box);
+      $('#sw-vol', box).oninput = e => {
+        SH.vol = Number(e.target.value) / 100;
+        Q.Sound.volume = SH.vol;
+        vv.textContent = Math.round(SH.vol * 100) + '%';
+        store();
+      };
+      $('#sw-vol', box).onchange = () => { Q.Sound.unlock(); sfx('pick'); };
+      $('#sw-test', box).onclick = () => {
+        Q.Sound.unlock();
+        sfx('tock'); setTimeout(() => sfx('tock'), 120);
+        setTimeout(() => sfx('land'), 280);
+        setTimeout(() => sfx('sting'), 1000);
+      };
+      $('#sw-spin', box).onchange = e => { SH.spinPick = e.target.checked; store(); };
+    });
 }
 
 /* =================================================================== boot */
@@ -9408,6 +10312,7 @@ function init() {
   Link.start(m => {
     if (!m) return;
     if (m.t === 'hello' && SH.role === 'control') { render(); return; }
+    if (m.t === 'brand' && SH.role === 'screen') { Q.Brand.load(); Q.Brand.apply(); return; }
     if (m.t === 'state' && SH.role === 'screen') {
       /* the quiz itself changed under us — reload so both windows agree */
       if (m.s && m.s.sig && SH.sig && m.s.sig !== SH.sig) { location.reload(); return; }
@@ -9422,6 +10327,7 @@ function init() {
   $('#show-edit').onclick = () => { location.hash = '#/host'; };
   $('#show-reset').onclick = startOver;
   $('#show-screen').onclick = openScreen;
+  $('#show-setup').onclick = stageSetup;
   /* the projector window is usually behind this one, so the only moment we can
      notice it was closed is when the host looks back at the control */
   addEventListener('focus', () => { if (SH.role === 'control') paintScreenBtn(); });

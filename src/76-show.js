@@ -31,8 +31,26 @@ const TOOLS = [
   { id: 'wheel', name: 'Spin the wheel' },
   { id: 'reveal', name: 'Reveal a picture' }
 ];
-const SPIN_MS = 4400;
+const SPIN_MS = 4400;      /* the wheel */
+const SWEEP_MS = 1500;     /* the spotlight running round the board */
+const LAND_MS = 760;       /* the tile turning over once it stops */
 const PIECES = 16;
+
+/* Every line the room reads is here rather than in the markup, because the
+   words are the first thing anyone wants to change: "Pick a number" is fine
+   for a quiz night and wrong for a town hall. {n} in the wheel line is the
+   number of names on it. */
+const WORDS = {
+  board:    'Pick a number',
+  call:     'Someone call one out.',
+  done:     'Every number has been opened.',
+  numLab:   'Number',
+  answer:   'Answer',
+  wheel:    'Spin the wheel',
+  wheelSub: '{n} on the wheel \u2014 whoever it lands on is up.',
+  reveal:   'What is this?',
+  ready:    'Ready'
+};
 
 const SH = {
   role: 'control',
@@ -46,9 +64,13 @@ const SH = {
   rot: 0, spinFrom: 0, spinning: false, winner: -1, spinAt: 0,
   pic: -1, gone: Object.create(null),
   sound: true, choices: true, just: 0, justPiece: -1,
+  vol: 1, spinPick: true, spin: null,
+  words: null,
   remote: null,
   lastKey: ''
 };
+
+const words = () => Object.assign({}, WORDS, SH.words || {});
 
 const questions = () => (Q.Build.getConfig().questions || []).filter(q => q.kind !== 'pz');
 const pictures = () => questions().filter(q => q.image);
@@ -87,7 +109,8 @@ const Link = (function () {
 /* ------------------------------------------------------------- persistence */
 function store() {
   LS.set(KEY, { sig: SH.sig, order: SH.order, used: SH.used, names: SH.names,
-                tool: SH.tool, sound: SH.sound, choices: SH.choices });
+                tool: SH.tool, sound: SH.sound, choices: SH.choices,
+                vol: SH.vol, spinPick: SH.spinPick, words: SH.words });
 }
 function load() {
   const qs = questions();
@@ -96,6 +119,9 @@ function load() {
   SH.names = (saved && Array.isArray(saved.names)) ? saved.names : [];
   SH.sound = !saved || saved.sound !== false;
   SH.choices = !saved || saved.choices !== false;
+  SH.spinPick = !saved || saved.spinPick !== false;
+  SH.vol = saved && Number.isFinite(saved.vol) ? Math.max(0, Math.min(1.4, saved.vol)) : 1;
+  SH.words = (saved && saved.words && typeof saved.words === 'object') ? saved.words : null;
   if (saved && TOOLS.some(t => t.id === saved.tool)) SH.tool = saved.tool;
   if (saved && saved.sig === sig && Array.isArray(saved.order) && saved.order.length === qs.length) {
     SH.sig = sig; SH.order = saved.order.slice();
@@ -129,6 +155,8 @@ function viewNow() {
   return {
     sig: SH.sig,
     tool: SH.tool,
+    w: words(),
+    spin: SH.spin,
     title: Q.Build.getConfig().title || 'Untitled quiz',
     tiles: SH.order.map((qi, k) => ({ n: k + 1, done: !!SH.used[qi] })),
     total: qs.length,
@@ -147,6 +175,9 @@ function viewNow() {
 function open(role, tool) {
   SH.role = role === 'screen' ? 'screen' : 'control';
   load();
+  Q.Brand.load();
+  Q.Brand.apply();
+  SH.spin = null;
   if (tool && TOOLS.some(t => t.id === tool)) SH.tool = tool;
   SH.at = -1; SH.shown = false; SH.pic = -1; SH.gone = Object.create(null);
 
@@ -159,6 +190,7 @@ function open(role, tool) {
   }
   Q.Host.showScreen('s-show');
   Q.Sound.enabled = SH.sound;
+  Q.Sound.volume = SH.vol;
   $('#show-title').textContent = Q.Build.getConfig().title || 'Untitled quiz';
   paintTools();
   paintSound();
@@ -235,8 +267,9 @@ function paintWaiting() {
   const stage = $('#screen-stage');
   if (!stage) return;
   stage.innerHTML =
+    Q.Brand.markHTML(true) +
     '<div class="show-head">' +
-      '<h1>Ready</h1>' +
+      '<h1>' + esc(words().ready) + '</h1>' +
       '<p class="waitdots">Waiting for the control window</p>' +
     '</div>';
 }
@@ -246,42 +279,124 @@ function paintNumbers(v, stage, live) {
   if (!v.total) { emptyCard(stage, 'There are no questions yet', 'The board puts one behind each number.', live); return; }
   if (v.at >= 0) { paintQuestion(v, stage, live); return; }
 
+  const w = v.w || WORDS;
   const left = v.tiles.filter(t => !t.done).length;
   const cols = Math.min(6, Math.max(3, Math.ceil(Math.sqrt(v.total))));
   const rows = Math.ceil(v.total / cols);
+  const spinning = !!v.spin;
   stage.innerHTML =
     '<div class="show-head">' +
-      '<h1>Pick a number</h1>' +
-      '<p>' + (left ? 'Someone call one out.' : 'Every number has been opened.') + '</p>' +
+      '<h1>' + esc(w.board) + '</h1>' +
+      '<p>' + esc(left ? w.call : w.done) + '</p>' +
     '</div>' +
-    '<div class="pick-grid big" style="--cols:' + cols + ';--rows:' + rows + '">' +
+    '<div class="pick-grid big' + (spinning ? ' sweeping' : '') + '" style="--cols:' + cols + ';--rows:' + rows + '">' +
       v.tiles.map((t, i) =>
         '<button class="pick-tile' + (t.done ? ' done' : '') +
           (t.done && v.just === t.n ? ' just-done' : '') + '" type="button"' +
           ' style="--i:' + i + '"' +
-          (live && !t.done ? ' data-n="' + (t.n - 1) + '"' : ' disabled') +
-          ' aria-label="Number ' + t.n + (t.done ? ', already opened' : '') + '">' +
+          (live && !t.done && !spinning ? ' data-n="' + (t.n - 1) + '"' : ' disabled') +
+          ' aria-label="' + esc(w.numLab) + ' ' + t.n + (t.done ? ', already opened' : '') + '">' +
           '<span class="n">' + t.n + '</span>' +
           (t.done ? '<span class="sub">opened</span>' : '') +
         '</button>').join('') +
     '</div>' +
-    (live && !left
+    (live && !left && !spinning
       ? '<div class="show-actions"><button class="btn primary" id="show-again">' +
         ico('refresh') + 'Shuffle and start over</button></div>'
       : '');
+
+  /* both windows run the sweep themselves off the shared timestamp */
+  if (spinning) {
+    const grid = stage.querySelector('.pick-grid');
+    if (grid) runSweep(grid, v, live);
+  }
+
   if (!live) return;
   stage.querySelectorAll('[data-n]').forEach(el => {
-    el.onclick = () => {
-      SH.at = SH.order[Number(el.dataset.n)];
-      SH.shown = false; SH.just = 0;
-      SH.used[SH.at] = 1;
-      sfx('pick');
-      setTimeout(() => sfx('swish'), 330);
-      store(); render();
-    };
+    el.onclick = () => openTile(Number(el.dataset.n));
   });
   const again = $('#show-again');
   if (again) again.onclick = startOver;
+}
+
+/* A number is called from the floor and the host taps it. Between those two
+   moments the board runs a spotlight round itself and slows into the tile that
+   was asked for. Nothing is being chosen — the number was already called — so
+   it decelerates hard and never overshoots: it reads as the board finding the
+   number, not picking one. */
+function openTile(pos) {
+  const qi = SH.order[pos];
+  if (qi == null) return;
+  const go = () => {
+    SH.spin = null;
+    SH.at = qi; SH.shown = false; SH.just = 0;
+    SH.used[qi] = 1;
+    store(); render();
+  };
+  if (!SH.spinPick || reduced()) {
+    sfx('pick');
+    setTimeout(() => sfx('swish'), 330);
+    go();
+    return;
+  }
+  /* a beat before it starts, so both windows have painted the board first */
+  SH.spin = { to: pos, at: Date.now() + 60 };
+  SH.just = 0;
+  render();
+  sfx('spin', SWEEP_MS);
+  setTimeout(go, 60 + SWEEP_MS + LAND_MS);
+}
+
+function runSweep(grid, v, live) {
+  const tiles = Array.prototype.slice.call(grid.querySelectorAll('.pick-tile'));
+  const n = tiles.length;
+  if (!n) return;
+  const target = Math.max(0, Math.min(n - 1, v.spin.to | 0));
+  /* enough laps that a small board still feels like it travelled; the target
+     is added on the end so the last step always lands on it exactly */
+  const steps = (n <= 6 ? 3 : 2) * n + target;
+  let last = -1, lastTick = 0, landed = false;
+
+  (function frame() {
+    if (!grid.isConnected) return;
+    const t = Math.min(1, (Date.now() - v.spin.at) / SWEEP_MS);
+    if (t < 0) { requestAnimationFrame(frame); return; }
+    const idx = Math.min(steps, Math.floor(ease(t) * steps)) % n;
+    if (idx !== last) {
+      if (last >= 0) tiles[last].classList.remove('spot');
+      tiles[idx].classList.add('spot');
+      last = idx;
+      const now = Date.now();
+      /* at full speed the tiles fly past faster than a click can be heard, so
+         thin the ticks out; the rhythm opens up on its own as it slows */
+      if (live && now - lastTick > 45) { lastTick = now; sfx('tock'); }
+    }
+    if (t < 1) { requestAnimationFrame(frame); return; }
+    if (landed) return;
+    landed = true;
+    grid.classList.remove('sweeping');
+    grid.classList.add('landing');
+    tiles[target].classList.remove('spot');
+    tiles[target].classList.add('landed');
+    ringOff(grid, tiles[target]);
+    if (live) sfx('land');
+  })();
+}
+
+/* a ring thrown off the tile the spotlight stopped on */
+function ringOff(grid, tile) {
+  try {
+    const d = grid.ownerDocument;
+    const el = d.createElement('div');
+    el.className = 'spot-ring';
+    const g = grid.getBoundingClientRect(), r = tile.getBoundingClientRect();
+    el.style.left = (r.left - g.left) + 'px';
+    el.style.top = (r.top - g.top) + 'px';
+    el.style.width = r.width + 'px';
+    el.style.height = r.height + 'px';
+    grid.appendChild(el);
+    setTimeout(() => { try { el.parentNode.removeChild(el); } catch (e) {} }, 900);
+  } catch (e) {}
 }
 
 /* Splitting on spaces lets the line arrive a word at a time, which reads on a
@@ -292,6 +407,7 @@ function wordsOf(text) {
 }
 
 function paintQuestion(v, stage, live) {
+  const w = v.w || WORDS;
   const q = questions()[v.at];
   if (!q) { emptyCard(stage, 'That question is no longer here', '', live); return; }
   const fresh = !v.shown;
@@ -317,7 +433,7 @@ function paintQuestion(v, stage, live) {
     /* no options on the wall: the room answers out loud and the answer lands
        on its own when the host calls for it */
     : (v.shown
-        ? '<div class="answer-solo"><span class="lab">Answer</span>' +
+        ? '<div class="answer-solo"><span class="lab">' + esc(w.answer) + '</span>' +
           '<b class="val">' + esc(q.options[q.correct]) + '</b>' +
           '<span class="ansmark">' + ico('check') + '</span></div>'
         : '');
@@ -328,7 +444,7 @@ function paintQuestion(v, stage, live) {
         ? '<div class="q-open" aria-hidden="true"><span class="ring"></span>' +
           '<span class="ring two"></span><span class="big-n">' + v.tileNo + '</span></div>'
         : '') +
-      '<span class="qno">Number ' + v.tileNo + '</span>' +
+      '<span class="qno">' + esc(w.numLab) + ' ' + v.tileNo + '</span>' +
       (q.image ? '<img class="show-img" src="' + esc(q.image) + '" alt="">' : '') +
       '<h2 class="show-text">' + (fresh ? wordsOf(q.text) : esc(q.text)) + '</h2>' +
       answers +
@@ -376,9 +492,10 @@ function startOver() {
 /* -------------------------------------------------------- spin the wheel */
 function paintWheel(v, stage, live) {
   const items = v.wheel.items;
+  const w = v.w || WORDS;
   stage.innerHTML =
-    '<div class="show-head"><h1>Spin the wheel</h1>' +
-      '<p>' + items.length + ' on the wheel &mdash; whoever it lands on is up.</p></div>' +
+    '<div class="show-head"><h1>' + esc(w.wheel) + '</h1>' +
+      '<p>' + esc(String(w.wheelSub).replace(/\{n\}/g, items.length)) + '</p></div>' +
     '<div class="wheel-wrap">' +
       '<div class="wheel-hold">' +
         '<div class="wheel-pin"></div>' +
@@ -535,9 +652,10 @@ function paintReveal(v, stage, live) {
   }
   const idx = (v.pic >= 0 && v.pic < pics.length) ? v.pic : 0;
   const q = pics[idx];
+  const w = v.w || WORDS;
   const goneN = Object.keys(v.gone || {}).length;
   stage.innerHTML =
-    '<div class="show-head"><h1>What is this?</h1>' +
+    '<div class="show-head"><h1>' + esc(w.reveal) + '</h1>' +
       '<p>' + (goneN >= PIECES ? 'All uncovered.' : (PIECES - goneN) + ' pieces still covering it') + '</p></div>' +
     '<div class="reveal-hold">' +
       '<img src="' + esc(q.image) + '" alt="">' +
@@ -628,12 +746,29 @@ function screenStage() {
     return scrStage;
   } catch (e) { return null; }
 }
+function screenDoc() {
+  const st = screenStage();
+  try { return st ? st.ownerDocument : null; } catch (e) { return null; }
+}
+
+/* The palette and the mark are re-applied everywhere at once: this window, the
+   window we wrote, and — for one somebody opened by hand — a nudge to re-read
+   it out of storage for itself. */
+function brandChanged() {
+  Q.Brand.save();
+  Q.Brand.apply();
+  const d = screenDoc();
+  if (d) Q.Brand.apply(d);
+  Link.send({ t: 'brand' });
+}
 
 function screenHTML() {
   /* every <style> this page carries, in order — they are all inline, so the
      copy is complete and offline by construction */
+  /* outerHTML rather than the text, so the brand rule keeps its id and can be
+     found and rewritten in there when the colours change */
   let css = '';
-  $$('style').forEach(s => { css += '<style>' + s.textContent + '</style>'; });
+  $$('style').forEach(s => { css += s.outerHTML; });
   const sprite = $('#qa-sprite');
   return '<!doctype html><html lang="en" style="background:#101128">' +
     '<head><meta charset="utf-8">' +
@@ -641,11 +776,12 @@ function screenHTML() {
     '<title>' + esc(Q.Build.getConfig().title || 'Quiz Arena') + ' — screen</title>' +
     css +
     /* the app's own body rule paints daylight; the stage is a dark room */
-    '<style>html,body{margin:0;background:#101128}body{overflow:hidden}' +
-    '#s-screen{height:100dvh}</style>' +
+    '<style>html,body{margin:0;background:' + Q.Brand.groundHex() + '}' +
+    'body{overflow:hidden}#s-screen{height:100dvh}</style>' +
     '</head><body>' +
     (sprite ? sprite.outerHTML : '') +
     '<section class="screen on" id="s-screen">' +
+      '<div class="stage-brandbar" id="screen-brand"></div>' +
       '<div class="show-stage screen-stage" id="screen-stage"></div>' +
     '</section></body></html>';
 }
@@ -675,6 +811,7 @@ function openScreen() {
   }
 
   scr = w; scrStage = stage;
+  Q.Brand.apply(w.document);
   /* a presenter's window wants to be full screen, and a double-click is the
      one gesture that needs no chrome to discover */
   try {
@@ -710,9 +847,193 @@ function paintScreenBtn() {
   const b = $('#show-screen');
   if (!b) return;
   const on = !!screenStage();
+  /* swap the two rather than adding ghost on top: .ghost clears the
+     background but not .primary's white lettering, which would leave the
+     button white on white */
+  b.classList.toggle('primary', !on);
   b.classList.toggle('ghost', on);
   b.innerHTML = ico(on ? 'check' : 'laptop') + (on ? 'Screen is open' : 'Open the screen');
   b.title = on ? 'The audience window is open — click to bring it forward' : 'Open the audience window';
+}
+
+/* ========================================================== stage settings
+   One sheet for the three things a host actually wants to change before they
+   put this on a wall: what it says, what it looks like, and how loud it is.
+   Everything applies as you touch it rather than on a Save — a colour you
+   cannot see until you commit to it is not a colour you can choose. */
+function stageSetup() {
+  const w = words();
+  const B = Q.Brand.get();
+  const field = (k, lab, wide) =>
+    '<div class="field' + (wide ? ' wide' : '') + '">' +
+      '<label for="sw-' + k + '">' + esc(lab) + '</label>' +
+      '<input class="inp" id="sw-' + k + '" maxlength="90" value="' + esc(w[k]) +
+      '" placeholder="' + esc(WORDS[k]) + '"></div>';
+
+  modal(
+    '<h2 style="font-size:22px">The stage</h2>' +
+    '<p class="dim" style="font-size:13.5px;margin-top:6px;line-height:1.6">' +
+      'This is the screen’s, not the quiz’s — it stays put when you change the questions, ' +
+      'and it is kept in this browser only.</p>' +
+
+    '<div class="set-sec"><h3>Words on the screen</h3><div class="set-rows">' +
+      field('board', 'Board heading') +
+      field('call', 'The line under it') +
+      field('done', 'When every number is gone', true) +
+      field('numLab', 'What one is called') +
+      field('answer', 'Label on the answer') +
+      field('wheel', 'Wheel heading') +
+      field('ready', 'While the screen waits') +
+      field('wheelSub', 'The line under the wheel — {n} is how many names are on it', true) +
+      field('reveal', 'Picture heading', true) +
+    '</div>' +
+    '<button class="btn ghost sm" id="sw-reset" style="margin-top:12px">' +
+      ico('undo') + 'Back to the defaults</button></div>' +
+
+    '<div class="set-sec"><h3>Brand</h3>' +
+      '<div class="theme-row" id="sw-themes"></div>' +
+      '<div class="set-rows" style="margin-top:13px">' +
+        '<div class="field"><label for="sw-accent">Accent</label>' +
+          '<input type="color" class="inp" id="sw-accent" value="' + Q.Brand.accentHex() + '"></div>' +
+        '<div class="field"><label for="sw-ground">Behind the screen</label>' +
+          '<input type="color" class="inp" id="sw-ground" value="' + Q.Brand.groundHex() + '"></div>' +
+        '<div class="field wide"><label for="sw-mark">Wording beside the logo</label>' +
+          '<input class="inp" id="sw-mark" maxlength="44" value="' + esc(B.mark || '') +
+          '" placeholder="your team, department or event"></div>' +
+      '</div>' +
+      '<div class="logo-row" style="margin-top:13px">' +
+        '<div class="logo-prev dark" id="sw-prev"></div>' +
+        '<button class="btn sm" id="sw-pick">' + ico('upload') + 'Use a logo</button>' +
+        '<button class="btn ghost sm" id="sw-clear">Remove</button>' +
+        '<input type="file" accept="image/*" id="sw-file" class="hide">' +
+      '</div>' +
+      '<p class="dim" style="font-size:12.5px;margin-top:10px;line-height:1.6">' +
+        'An SVG or a PNG with a transparent background sits best on a dark screen. ' +
+        'It is stored in this browser and goes nowhere else. Whatever you put here is ' +
+        'your call — make sure you have the right to use it.</p>' +
+    '</div>' +
+
+    '<div class="set-sec"><h3>Sound &amp; motion</h3>' +
+      '<div class="vol-row">' +
+        '<span class="dim" style="font-size:13px;min-width:52px">Volume</span>' +
+        '<input type="range" id="sw-vol" min="0" max="140" step="10" value="' + Math.round(SH.vol * 100) + '">' +
+        '<span class="mono num" id="sw-volv" style="min-width:44px;text-align:right">' +
+          Math.round(SH.vol * 100) + '%</span>' +
+        '<button class="btn ghost xs" id="sw-test">Try it</button>' +
+      '</div>' +
+      '<label class="switch" style="margin-top:14px">' +
+        '<input type="checkbox" id="sw-spin"' + (SH.spinPick ? ' checked' : '') + '>' +
+        '<span class="track"></span>' +
+        '<span style="font-size:13.5px">Run the board before a number opens</span></label>' +
+      '<p class="dim" style="font-size:12.5px;margin-top:7px;line-height:1.6">' +
+        'A spotlight travels the board and slows into the number that was called, ' +
+        'then the tile turns over. Off, the question opens straight away.</p>' +
+    '</div>' +
+
+    '<div class="row" style="justify-content:flex-end;margin-top:17px">' +
+      '<button class="btn primary" data-close>Done</button></div>',
+
+    (box, close) => {
+      /* ---- words ---- */
+      const keys = Object.keys(WORDS);
+      const readWords = () => {
+        const out = {};
+        keys.forEach(k => {
+          const el = $('#sw-' + k, box);
+          if (!el) return;
+          const val = el.value.trim();
+          if (val && val !== WORDS[k]) out[k] = val;
+        });
+        SH.words = Object.keys(out).length ? out : null;
+        store(); render();
+      };
+      keys.forEach(k => {
+        const el = $('#sw-' + k, box);
+        if (el) el.oninput = readWords;
+      });
+      $('#sw-reset', box).onclick = () => {
+        SH.words = null;
+        keys.forEach(k => { const el = $('#sw-' + k, box); if (el) el.value = WORDS[k]; });
+        store(); render();
+        toast('Back to the default wording', 'ok');
+      };
+
+      /* ---- brand ---- */
+      const prev = $('#sw-prev', box);
+      const paintPrev = () => {
+        const lg = Q.Brand.get().logo;
+        prev.innerHTML = lg
+          ? '<img src="' + esc(lg) + '" alt="">'
+          : '<span class="faint" style="font-size:12px">No logo yet</span>';
+        $('#sw-clear', box).disabled = !lg;
+      };
+      const paintThemes = () => {
+        $('#sw-themes', box).innerHTML = Q.Brand.THEMES.map(t =>
+          '<button class="theme-chip" data-t="' + t.id + '" aria-pressed="' +
+          (Q.Brand.get().theme === t.id ? 'true' : 'false') + '">' +
+          '<span class="sw" style="background:linear-gradient(135deg,' + t.accent + ' 48%,' + t.ground + ' 52%)"></span>' +
+          esc(t.name) + '</button>').join('');
+        $('#sw-themes', box).querySelectorAll('[data-t]').forEach(el => {
+          el.onclick = () => {
+            /* picking a theme drops any hand-mixed colours — that is what
+               picking a theme means */
+            Q.Brand.set({ theme: el.dataset.t, accent: '', ground: '' });
+            $('#sw-accent', box).value = Q.Brand.accentHex();
+            $('#sw-ground', box).value = Q.Brand.groundHex();
+            paintThemes();
+            brandChanged();
+            sfx('swish');
+          };
+        });
+      };
+      paintThemes();
+      paintPrev();
+
+      $('#sw-accent', box).oninput = e => { Q.Brand.set({ accent: e.target.value }); paintThemes(); brandChanged(); };
+      $('#sw-ground', box).oninput = e => { Q.Brand.set({ ground: e.target.value }); paintThemes(); brandChanged(); };
+      $('#sw-mark', box).oninput = e => { Q.Brand.set({ mark: e.target.value.trim() }); brandChanged(); };
+
+      const file = $('#sw-file', box);
+      $('#sw-pick', box).onclick = () => file.click();
+      $('#sw-clear', box).onclick = () => {
+        Q.Brand.set({ logo: '' });
+        paintPrev(); brandChanged();
+      };
+      file.onchange = () => {
+        const f = file.files && file.files[0];
+        file.value = '';
+        if (!f) return;
+        prev.innerHTML = '<span class="qimg-busy">' + ico('hourglass') + '</span>';
+        Q.readFileAsDataURL(f)
+          .then(src => Q.Brand.shrinkLogo(src, f.type))
+          .then(out => {
+            Q.Brand.set({ logo: out });
+            paintPrev(); brandChanged();
+            toast('Logo set — it shows on the screen', 'ok');
+          })
+          .catch(err => {
+            paintPrev();
+            toast(err.message || 'That image would not load', 'bad');
+          });
+      };
+
+      /* ---- sound & motion ---- */
+      const vv = $('#sw-volv', box);
+      $('#sw-vol', box).oninput = e => {
+        SH.vol = Number(e.target.value) / 100;
+        Q.Sound.volume = SH.vol;
+        vv.textContent = Math.round(SH.vol * 100) + '%';
+        store();
+      };
+      $('#sw-vol', box).onchange = () => { Q.Sound.unlock(); sfx('pick'); };
+      $('#sw-test', box).onclick = () => {
+        Q.Sound.unlock();
+        sfx('tock'); setTimeout(() => sfx('tock'), 120);
+        setTimeout(() => sfx('land'), 280);
+        setTimeout(() => sfx('sting'), 1000);
+      };
+      $('#sw-spin', box).onchange = e => { SH.spinPick = e.target.checked; store(); };
+    });
 }
 
 /* =================================================================== boot */
@@ -720,6 +1041,7 @@ function init() {
   Link.start(m => {
     if (!m) return;
     if (m.t === 'hello' && SH.role === 'control') { render(); return; }
+    if (m.t === 'brand' && SH.role === 'screen') { Q.Brand.load(); Q.Brand.apply(); return; }
     if (m.t === 'state' && SH.role === 'screen') {
       /* the quiz itself changed under us — reload so both windows agree */
       if (m.s && m.s.sig && SH.sig && m.s.sig !== SH.sig) { location.reload(); return; }
@@ -734,6 +1056,7 @@ function init() {
   $('#show-edit').onclick = () => { location.hash = '#/host'; };
   $('#show-reset').onclick = startOver;
   $('#show-screen').onclick = openScreen;
+  $('#show-setup').onclick = stageSetup;
   /* the projector window is usually behind this one, so the only moment we can
      notice it was closed is when the host looks back at the control */
   addEventListener('focus', () => { if (SH.role === 'control') paintScreenBtn(); });

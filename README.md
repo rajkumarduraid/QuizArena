@@ -194,16 +194,74 @@ the messages stay tiny.
 You can also run the whole thing in one window if you would rather — the
 controls simply sit under the question.
 
+One thing to know: if you reload *your* window, the one on the projector is
+orphaned and freezes on whatever it was showing. Press **Open the screen**
+again and it takes that same window back over and repaints it.
+
+### Make it yours
+
+**Stage** in the toolbar opens one sheet holding the three things you actually
+want to change before this goes on a wall. Everything in it applies as you
+touch it — a colour you cannot see until you commit to it is not a colour you
+can choose — and all of it lives in this browser, not in the quiz, so it stays
+put when you change the questions.
+
+**The words.** Every line the room reads is a field: the board heading, the
+line under it, what a number is called, the label on the answer, the wheel and
+picture headings, and what the screen says while it waits. "Pick a number /
+Someone call one out" is right for a quiz night and wrong for a town hall, so
+neither is baked in. `{n}` in the wheel's line is how many names are on it. One
+button puts every line back.
+
+**The palette.** Five themes, or set the two colours yourself: an accent and
+the colour behind the screen. Everything else is derived from those two —
+surfaces, rules, dimmed text, the glow behind a numeral — so a colour taken out
+of a brand guide produces a whole coherent screen rather than one repainted
+element. The accent carries through the host's window as well, so the two are
+plainly the same piece of software.
+
+Two things it will not let you do. A colour that is too pale to read as text on
+paper is darkened until it does, and the same colour is lifted until it reads
+on the dark stage — measured as a contrast ratio, not guessed at, so the two
+can differ and both be right. And a light brand colour keeps its actual colour
+as a button fill: the lettering on top switches to dark instead, which is why a
+gold brand comes out gold rather than a drab olive.
+
+**The logo.** Upload yours and it sits at the top of the room's screen and
+beside the title in your own window, with a line of wording next to it if you
+want one. An SVG or a PNG with a transparent background sits best on a dark
+stage; unlike a question's picture, a logo is never flattened onto white,
+because the transparency is the thing that makes it sit on the stage at all. It
+is kept in this browser and goes nowhere else.
+
+There is no company mark in this repository and there will not be one. A logo
+belongs to the company it names, and anyone inside that company already has the
+real file. What you put in that slot is your call — make sure you have the
+right to use it, particularly for anything beyond your own meeting room.
+
+**Sound and motion.** A volume, with a button that plays a few of the sounds so
+you can set it against the room rather than against your laptop. And a switch
+for the spin, below.
+
 Three tools share the screen, and you switch between them at the top.
 
 ### Pick a number
 
 The questions from your quiz go behind numbered tiles. Someone calls a number,
-you tap it, and the question fills the screen with its options. **Show the
-answer** plays it out: the ones that are out shake off and grey down with a
+you tap it, and the board runs: a spotlight travels the tiles, slows hard, and
+stops on the number that was called; that tile turns over once and swells while
+the rest of the board falls away; then the question fills the screen. **Show
+the answer** plays it out: the ones that are out shake off and grey down with a
 cross, then the right one lands with a ring and a tick. **Back to the board**
-returns. A number you have
-opened is struck off so you never repeat one.
+returns. A number you have opened is struck off so you never repeat one.
+
+Nothing is being chosen during that run — the number was already called from
+the floor — so it decelerates into its target and never passes it on the last
+lap. It reads as the board finding the number rather than picking one. Both
+windows run it from the same timestamp rather than one being told frame by
+frame, so the laptop and the projector stay in step even if one repaints late.
+Turn it off in **Stage** and a number opens straight away; anyone who has asked
+their system for reduced motion gets that automatically.
 
 The board is shuffled against your question order when the quiz changes, so the
 number gives nothing away — and it is remembered, so a stray reload in the
@@ -233,10 +291,28 @@ The toggle is in the toolbar and is remembered.
 
 ### Sound
 
-On by default, with a toggle in the toolbar. A number opening, a roll under the
-pause before an answer, a sting when it lands, a tick for each name the wheel
-passes, a soft lift for each piece of a picture. Nothing long enough to talk
-over.
+On by default, with a toggle in the toolbar and a volume in **Stage**. A number
+opening, ticks as the spotlight passes tiles, a thump and a chord when it
+stops, a held breath before an answer, a chord that resolves when it lands, a
+soft lift for each piece of a picture. Nothing long enough to talk over.
+
+All of it is synthesised as it plays — there are no audio files to load, which
+is the only way it works from a downloaded page on a locked-down laptop. What
+separates that from a row of beeps is not the waveform but everything around
+it:
+
+- an envelope with a few milliseconds of attack, so no note starts with a
+  click, and a curve down rather than a gate at the end
+- a lowpass that closes as the note dies, the way a struck object loses its
+  brightness before it loses its volume
+- partials — a bell is a fundamental with a couple of quieter harmonics over
+  it, not one sine wave
+- a short room on a send, so nothing lands flat against a hard wall
+- a limiter across the end, so a chord and a whoosh arriving on the same beat
+  cannot spit through a projector's speakers
+- one scale for every pitch, so anything that overlaps still agrees
+
+At zero volume or muted, nothing is built at all rather than built and silenced.
 
 It plays from **your** window, not the room's. A window opened by a script has
 had no click of its own, so its audio would stay muted — and both windows are

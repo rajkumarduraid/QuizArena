@@ -56,15 +56,18 @@ const TEAM_PALETTE = ['#D62650', '#1B5BDB', '#B96A00', '#0B8C5E', '#6E38CE', '#0
 const ico = (name, cls) =>
   '<svg class="ico ' + (cls || '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>';
 
-/* The mark: a Q whose tail is the answer triangle. */
+/* The mark: a Q whose tail is the answer triangle. Its colours are read from
+   the theme rather than written in, so a rebranded app is not left with the
+   app's own purple sitting in the corner of somebody else's palette. */
 function markSVG(px) {
   const id = 'qm' + Math.random().toString(36).slice(2, 7);
   return '<svg class="mark" viewBox="0 0 32 32" role="img" aria-label="Quiz Arena"' +
     (px ? ' style="font-size:' + px + 'px"' : '') + '>' +
     '<defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1">' +
-    '<stop offset="0" stop-color="#6D4BFF"/><stop offset="1" stop-color="#3A22C4"/></linearGradient></defs>' +
+    '<stop offset="0" stop-color="var(--brand-fill-2,#6D4BFF)"/>' +
+    '<stop offset="1" stop-color="var(--brand-fill,#3A22C4)"/></linearGradient></defs>' +
     '<circle cx="14.6" cy="14.6" r="10" fill="none" stroke="url(#' + id + ')" stroke-width="4.7"/>' +
-    '<path d="M20.2 20.2 29 25.3l-5.6 3.6Z" fill="#E39400"/></svg>';
+    '<path d="M20.2 20.2 29 25.3l-5.6 3.6Z" fill="var(--gold,#E39400)"/></svg>';
 }
 
 /* ------------------------------------------------------------------ toast */
@@ -118,65 +121,280 @@ const SS = {
   set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 };
 
-/* ------------------------------------------------------------------ sound */
+/* ------------------------------------------------------------------ sound
+   Every sound here is synthesised on the spot — no files to load, nothing to
+   fetch, which is the only way it works from a downloaded page on a locked-down
+   laptop. What makes the difference between an instrument and a beep is not the
+   waveform, it is everything around it:
+
+     · an envelope with a few milliseconds of attack, so no note begins with a
+       click, and a curve down rather than a gate at the end
+     · a lowpass that closes as the note dies, the way a struck object loses
+       its brightness before it loses its volume
+     · partials — a real bell is a fundamental with a couple of quieter
+       harmonics over it, not one sine wave
+     · a short room on a send, so nothing lands flat against a hard wall
+     · a limiter across the end, so two sounds landing together never clip
+
+   Pitches come from one scale, so anything that overlaps still agrees. */
 const Sound = (function () {
-  let ctx = null, on = true;
-  const ensure = () => {
-    if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+  let ctx = null, on = true, vol = 1;
+  let master = null, wet = null, hiss = null;
+
+  /* C major, which is where everything in here sits */
+  const N = {
+    C2: 65.41, G2: 98.00, C3: 130.81, E3: 164.81, F3: 174.61, G3: 196.00,
+    A3: 220.00, B3: 246.94,
+    C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00,
+    C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880.00,
+    C6: 1046.50, D6: 1174.66, E6: 1318.51, G6: 1568.00, C7: 2093.00
+  };
+
+  function ensure() {
+    if (!ctx) {
+      try { ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (e) { return null; }
+      build(ctx);
+    }
     if (ctx.state === 'suspended') ctx.resume();
     return ctx;
-  };
-  function blip(freq, dur, type, gain) {
-    if (!on) return;
-    const c = ensure(); if (!c) return;
-    const o = c.createOscillator(), g = c.createGain();
-    o.type = type || 'sine';
-    o.frequency.setValueAtTime(freq, c.currentTime);
-    g.gain.setValueAtTime(0.0001, c.currentTime);
-    g.gain.exponentialRampToValueAtTime(gain || 0.14, c.currentTime + 0.012);
-    g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
-    o.connect(g); g.connect(c.destination);
-    o.start(); o.stop(c.currentTime + dur + 0.02);
   }
+
+  function build(c) {
+    /* the limiter is the reason a chord and a whoosh can land on the same
+       beat without the projector's speakers spitting */
+    const lim = c.createDynamicsCompressor();
+    lim.threshold.value = -10; lim.knee.value = 22; lim.ratio.value = 6;
+    lim.attack.value = 0.003; lim.release.value = 0.18;
+    lim.connect(c.destination);
+
+    master = c.createGain();
+    master.gain.value = 0.9;
+    master.connect(lim);
+
+    /* a small, dry-ish room: long enough to sound like somewhere, short
+       enough that a run of ticks does not turn to mush */
+    const rev = c.createConvolver();
+    rev.buffer = impulse(c, 1.1, 3.4);
+    const tame = c.createBiquadFilter();       /* keep the tail off the top end */
+    tame.type = 'lowpass'; tame.frequency.value = 3600;
+    wet = c.createGain(); wet.gain.value = 0.9;
+    wet.connect(tame); tame.connect(rev); rev.connect(master);
+
+    /* one noise buffer, reused — generating two seconds of random numbers per
+       tick would be the most expensive thing on the page */
+    hiss = c.createBuffer(1, Math.floor(c.sampleRate * 2), c.sampleRate);
+    const d = hiss.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+
+  function impulse(c, secs, decay) {
+    const n = Math.floor(c.sampleRate * secs);
+    const b = c.createBuffer(2, n, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = b.getChannelData(ch);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay);
+    }
+    return b;
+  }
+
+  const lvl = g => Math.max(0.00012, g * vol);
+
+  /* One note: oscillator → closing lowpass → envelope → out, with a send. */
+  function tone(o) {
+    const c = ensure(); if (!c || !on) return;
+    const t = c.currentTime + (o.at || 0);
+    const dur = o.dur || 0.3;
+    const peak = lvl(o.gain == null ? 0.1 : o.gain);
+    if (peak < 0.0002) return;
+
+    const osc = c.createOscillator();
+    osc.type = o.type || 'sine';
+    osc.frequency.setValueAtTime(o.f, t);
+    if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + dur * (o.bend || 1));
+    if (o.detune) osc.detune.value = o.detune;
+
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = o.q == null ? 0.7 : o.q;
+    lp.frequency.setValueAtTime(Math.min(16000, o.open || o.f * 7), t);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(160, o.close || o.f * 1.5), t + dur);
+
+    const g = c.createGain();
+    const atk = o.atk == null ? 0.007 : o.atk;
+    g.gain.setValueAtTime(0.00012, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + atk);
+    if (o.hold) g.gain.setValueAtTime(peak, t + atk + o.hold);
+    g.gain.exponentialRampToValueAtTime(0.00012, t + dur);
+
+    osc.connect(lp); lp.connect(g); g.connect(master);
+    send(c, g, o.send == null ? 0.22 : o.send);
+    osc.start(t); osc.stop(t + dur + 0.06);
+  }
+
+  /* A struck thing: the note, an octave over it, and a thin twelfth above
+     that, each quieter and shorter than the last. */
+  function bell(f, o) {
+    o = o || {};
+    const dur = o.dur || 0.6, g = o.gain == null ? 0.1 : o.gain;
+    tone({ f: f, dur: dur, gain: g, at: o.at, type: 'sine',
+           open: f * 4, close: f * 1.2, send: o.send });
+    tone({ f: f * 2, dur: dur * 0.62, gain: g * 0.4, at: o.at, type: 'sine',
+           open: f * 7, close: f * 2, send: o.send });
+    tone({ f: f * 3.01, dur: dur * 0.34, gain: g * 0.17, at: o.at, type: 'triangle',
+           open: f * 9, close: f * 3, send: o.send });
+  }
+
+  /* Air: filtered noise, for whooshes, clicks and anything with a transient. */
+  function air(o) {
+    const c = ensure(); if (!c || !on || !hiss) return;
+    const t = c.currentTime + (o.at || 0);
+    const dur = o.dur || 0.2;
+    const peak = lvl(o.gain == null ? 0.06 : o.gain);
+    if (peak < 0.0002) return;
+
+    const src = c.createBufferSource();
+    src.buffer = hiss; src.loop = true;
+    const f = c.createBiquadFilter();
+    f.type = o.type || 'bandpass';
+    f.Q.value = o.q == null ? 1.1 : o.q;
+    f.frequency.setValueAtTime(o.f || 900, t);
+    if (o.to) f.frequency.exponentialRampToValueAtTime(o.to, t + dur * (o.bend || 1));
+
+    const g = c.createGain();
+    const atk = o.atk == null ? 0.02 : o.atk;
+    g.gain.setValueAtTime(0.00012, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + atk);
+    if (o.hold) g.gain.setValueAtTime(peak, t + atk + o.hold);
+    g.gain.exponentialRampToValueAtTime(0.00012, t + dur);
+
+    src.connect(f); f.connect(g); g.connect(master);
+    send(c, g, o.send == null ? 0.18 : o.send);
+    src.start(t); src.stop(t + dur + 0.06);
+  }
+
+  function send(c, from, amt) {
+    if (!wet || !amt) return;
+    const s = c.createGain(); s.gain.value = amt;
+    from.connect(s); s.connect(wet);
+  }
+
+  /* several notes, one after another */
+  function run(freqs, step, o) {
+    o = o || {};
+    freqs.forEach((f, i) => bell(f, {
+      at: (o.at || 0) + i * step,
+      dur: o.dur || 0.5,
+      gain: (o.gain == null ? 0.1 : o.gain) * (o.fade ? 1 - i * 0.1 : 1),
+      send: o.send
+    }));
+  }
+
   return {
     set enabled(v) { on = !!v; },
     get enabled() { return on; },
+    /* 0 to 1.4 — a projector in a hard room wants less than a laptop does */
+    set volume(v) { vol = Math.max(0, Math.min(1.4, Number(v) || 0)); },
+    get volume() { return vol; },
     unlock() { ensure(); },
-    tick()  { blip(880, 0.07, 'square', 0.05); },
-    urgent(){ blip(1240, 0.09, 'square', 0.09); },
-    start() { [523, 659, 784].forEach((f, i) => setTimeout(() => blip(f, 0.16, 'triangle', 0.11), i * 90)); },
-    right() { [784, 1047].forEach((f, i) => setTimeout(() => blip(f, 0.18, 'triangle', 0.12), i * 90)); },
-    wrong() { blip(180, 0.3, 'sawtooth', 0.09); },
-    times() { blip(300, 0.45, 'sawtooth', 0.1); },
-    win()   { [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => blip(f, 0.28, 'triangle', 0.13), i * 130)); },
+
+    /* ---- the scored game ---- */
+    tick() {
+      air({ f: 2600, to: 1500, dur: 0.035, gain: 0.05, q: 2.4, atk: 0.001, send: 0.05 });
+      tone({ f: N.C6, dur: 0.05, gain: 0.03, type: 'sine', atk: 0.002, send: 0.05 });
+    },
+    urgent() {
+      air({ f: 3400, to: 1900, dur: 0.045, gain: 0.085, q: 2.6, atk: 0.001, send: 0.08 });
+      tone({ f: N.E6, dur: 0.07, gain: 0.06, type: 'sine', atk: 0.002, send: 0.08 });
+    },
+    start() {
+      air({ f: 500, to: 3200, dur: 0.34, gain: 0.05, q: 0.7, atk: 0.16 });
+      run([N.C5, N.E5, N.G5], 0.1, { dur: 0.55, gain: 0.1 });
+      tone({ f: N.C3, dur: 0.7, gain: 0.07, type: 'triangle', at: 0.2, open: 700 });
+    },
+    right() {
+      run([N.G5, N.C6], 0.085, { dur: 0.62, gain: 0.1 });
+      tone({ f: N.C4, dur: 0.5, gain: 0.05, type: 'triangle', open: 900 });
+    },
+    /* not a buzzer — a short fall that gets out of the way */
+    wrong() {
+      tone({ f: N.A3, to: N.F3, dur: 0.3, gain: 0.075, type: 'triangle', open: 800, close: 280 });
+      tone({ f: N.A3 / 2, dur: 0.34, gain: 0.05, type: 'sine', open: 420 });
+    },
+    times() {
+      tone({ f: N.G3, to: N.C3, dur: 0.6, gain: 0.085, type: 'triangle', open: 900, close: 220 });
+      air({ f: 1400, to: 300, dur: 0.5, gain: 0.05, q: 0.9, atk: 0.03 });
+    },
+    win() {
+      run([N.C5, N.E5, N.G5, N.C6, N.E6], 0.11, { dur: 0.8, gain: 0.105 });
+      /* the chord the run resolves into, held under it */
+      [N.C4, N.E4, N.G4, N.C5].forEach(f =>
+        tone({ f: f, dur: 1.9, gain: 0.045, type: 'triangle', at: 0.44,
+               atk: 0.1, hold: 0.5, open: f * 4, close: f * 1.4, send: 0.4 }));
+    },
 
     /* ---- the big screen ----
-       A room hears these over a projector, so they are shorter and softer than
-       a game-show sting: enough to punctuate what just happened on the wall,
-       never enough to talk over the person presenting. */
-    pick()   { [523, 784].forEach((f, i) => setTimeout(() => blip(f, 0.13, 'triangle', 0.09), i * 70)); },
-    tock()   { blip(1500, 0.03, 'square', 0.035); },
-    lift()   { blip(720, 0.08, 'triangle', 0.055); },
-    /* a low roll under the pause before an answer is given */
-    roll(ms) {
-      const n = Math.max(3, Math.round((ms || 600) / 55));
-      for (let i = 0; i < n; i++) {
-        setTimeout(() => blip(150 + i * 4, 0.05, 'triangle', 0.035 + i * 0.002), i * 55);
-      }
+       A room hears these over a projector while somebody is talking, so they
+       are shorter and softer than a game-show sting: enough to punctuate what
+       just happened on the wall, never enough to talk over the presenter. */
+
+    /* a number has been called */
+    pick() {
+      air({ f: 1800, to: 700, dur: 0.07, gain: 0.05, q: 1.6, atk: 0.002, send: 0.1 });
+      bell(N.C5, { dur: 0.5, gain: 0.085 });
+      bell(N.G5, { dur: 0.6, gain: 0.075, at: 0.075 });
     },
-    sting() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => blip(f, 0.24, 'triangle', 0.115), i * 78)); },
-    dud()   { blip(196, 0.16, 'sine', 0.045); },
-    swish() {
-      const c = ensure(); if (!c || !on) return;
-      const o = c.createOscillator(), g = c.createGain();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(220, c.currentTime);
-      o.frequency.exponentialRampToValueAtTime(1100, c.currentTime + 0.22);
-      g.gain.setValueAtTime(0.0001, c.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.07, c.currentTime + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.26);
-      o.connect(g); g.connect(c.destination);
-      o.start(); o.stop(c.currentTime + 0.3);
+    /* the sweep passing a tile, or a wheel sector passing the pin */
+    tock() {
+      air({ f: 2200, to: 1100, dur: 0.028, gain: 0.055, q: 3.2, atk: 0.001, send: 0.06 });
+      tone({ f: N.G5, dur: 0.045, gain: 0.028, type: 'sine', atk: 0.002, send: 0.06 });
+    },
+    /* the bed under a spin: a riser that tightens as it goes */
+    spin(ms) {
+      const d = Math.max(0.3, (ms || 1200) / 1000);
+      air({ f: 300, to: 2400, dur: d, gain: 0.045, q: 1.4, atk: d * 0.6, send: 0.3 });
+      tone({ f: N.C3, to: N.G3, dur: d, gain: 0.05, type: 'triangle',
+             atk: d * 0.55, open: 500, close: 900, send: 0.25 });
+    },
+    /* the sweep stopping on a number */
+    land() {
+      tone({ f: N.C3, dur: 0.42, gain: 0.11, type: 'sine', atk: 0.004, open: 600, close: 120 });
+      air({ f: 2600, to: 600, dur: 0.16, gain: 0.07, q: 1.2, atk: 0.002, send: 0.3 });
+      bell(N.C5, { dur: 0.85, gain: 0.1, send: 0.42 });
+      bell(N.E5, { dur: 0.8, gain: 0.07, at: 0.035, send: 0.42 });
+      bell(N.G5, { dur: 0.95, gain: 0.06, at: 0.07, send: 0.42 });
+    },
+    /* a cover lifting off */
+    lift() {
+      air({ f: 700, to: 3000, dur: 0.17, gain: 0.05, q: 0.9, atk: 0.06, send: 0.28 });
+      bell(N.E5, { dur: 0.34, gain: 0.05 });
+    },
+    /* the held breath before an answer is given */
+    roll(ms) {
+      const d = Math.max(0.2, (ms || 600) / 1000);
+      tone({ f: N.C2, dur: d + 0.1, gain: 0.075, type: 'triangle',
+             atk: d * 0.75, open: 260, close: 200, send: 0.2 });
+      tone({ f: N.G2, dur: d + 0.08, gain: 0.05, type: 'sine', atk: d * 0.8, open: 300 });
+      air({ f: 240, to: 1500, dur: d, gain: 0.05, q: 1.6, atk: d * 0.8, send: 0.3 });
+    },
+    /* the answer landing: an arpeggio that resolves and is then held */
+    sting() {
+      run([N.C5, N.E5, N.G5, N.C6], 0.062, { dur: 0.75, gain: 0.1, send: 0.35 });
+      [N.C4, N.E4, N.G4].forEach(f =>
+        tone({ f: f, dur: 1.5, gain: 0.04, type: 'triangle', at: 0.2,
+               atk: 0.08, hold: 0.35, open: f * 4, close: f * 1.3, send: 0.45 }));
+      air({ f: 3000, to: 900, dur: 0.3, gain: 0.03, q: 0.8, atk: 0.01, send: 0.4 });
+    },
+    /* nothing there — a shrug, not a failure */
+    dud() {
+      tone({ f: N.E3, to: N.C3, dur: 0.26, gain: 0.055, type: 'sine', open: 600, close: 200 });
+    },
+    /* moving between things */
+    swish(ms) {
+      const d = Math.max(0.12, (ms || 260) / 1000);
+      air({ f: 420, to: 2800, dur: d, gain: 0.05, q: 0.75, atk: d * 0.42, send: 0.3 });
+      tone({ f: N.G4, to: N.G5, dur: d * 0.8, gain: 0.025, type: 'sine',
+             atk: d * 0.4, open: 3000, close: 1400, send: 0.3 });
     }
   };
 })();
@@ -601,7 +819,7 @@ window.QA = {
   $, $$, esc, clamp, uid, roomCode, secs, mmss, nf, now,
   shape, ico, markSVG, ACOLORS, AHEX, TEAM_PALETTE,
   countUp, flip, codeLetters, reduced,
-  shrinkImage, readFileAsDataURL, IMG_BUDGET,
+  shrinkImage, loadImage, readFileAsDataURL, IMG_BUDGET,
   toast, modal, LS, SS, Sound, Confetti,
   LocalBus, PeerHost, PeerClient, RelayBus, Net, PEER_PREFIX, findRelay
 };

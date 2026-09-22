@@ -32,6 +32,16 @@
   /* brand */
   --brand:#4B2FE3;
   --brand-2:#6D4BFF;
+  /* the accent as channels, so glows and washes can be mixed from it at any
+     opacity — a hex cannot carry an alpha through a custom property */
+  --accent-rgb:109,75,255;
+  /* The accent does two jobs that pull in opposite directions: it is text on
+     paper, where it has to be dark, and it is the fill under a primary
+     button, where it only has to carry whatever ink we put on it. A brand
+     colour that is light — a gold, an orange — comes out drab if one value
+     has to do both, so there are two, and the ink on the fill is chosen to
+     suit it. */
+  --brand-fill:#4B2FE3; --brand-fill-2:#6D4BFF; --on-brand:#fff;
   --brand-soft:#EFEBFF;
   --brand-line:#CDC2FF;
 
@@ -69,7 +79,7 @@ html,body{height:100%}
 body{
   margin:0; font-family:var(--sans); color:var(--ink); background:var(--bg);
   background-image:
-    radial-gradient(760px 520px at 8% -8%, rgba(109,75,255,.13), transparent 62%),
+    radial-gradient(760px 520px at 8% -8%, rgba(var(--accent-rgb),.13), transparent 62%),
     radial-gradient(680px 460px at 102% 4%, rgba(14,143,98,.09), transparent 58%),
     radial-gradient(620px 520px at 46% 108%, rgba(227,148,0,.09), transparent 60%);
   background-attachment:fixed;
@@ -83,7 +93,7 @@ p{margin:0}
 button,input,select,textarea{font:inherit; color:inherit}
 button{cursor:pointer; border:0; background:none}
 a{color:var(--brand)}
-::selection{background:rgba(109,75,255,.22)}
+::selection{background:rgba(var(--accent-rgb),.22)}
 :focus-visible{outline:2px solid var(--brand); outline-offset:2px; border-radius:6px}
 
 *::-webkit-scrollbar{width:11px;height:11px}
@@ -157,8 +167,9 @@ a{color:var(--brand)}
 .btn:active{transform:translateY(0) scale(.986)}
 .btn:disabled{opacity:.42; cursor:not-allowed; transform:none; box-shadow:none}
 .btn .ico{opacity:.75}
-.btn.primary{background:linear-gradient(180deg,var(--brand-2),var(--brand));
-  border-color:transparent; color:#fff; box-shadow:0 1px 2px rgba(38,28,110,.28), 0 8px 20px rgba(75,47,227,.26)}
+.btn.primary{background:linear-gradient(180deg,var(--brand-fill-2),var(--brand-fill));
+  border-color:transparent; color:var(--on-brand);
+  box-shadow:0 1px 2px rgba(38,28,110,.28), 0 8px 20px rgba(var(--accent-rgb),.26)}
 .btn.primary:hover{box-shadow:0 2px 4px rgba(38,28,110,.3), 0 12px 28px rgba(75,47,227,.34)}
 .btn.primary .ico{opacity:1}
 .btn.go{background:linear-gradient(180deg,#12A876,#0B7D55); border-color:transparent; color:#fff;
@@ -779,6 +790,7 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 /* On a projector the tiles should fill the wall, so the column count comes
    from how many there are rather than from a minimum width that leaves the
    bottom half of the screen empty. */
+.pick-grid{position:relative}
 .pick-grid.big{grid-template-columns:repeat(var(--cols,4),minmax(0,1fr)); gap:clamp(10px,1.4vw,20px);
   width:min(100%,min(1180px,calc((100dvh - 330px) * var(--cols,4) / var(--rows,3)))); margin-inline:auto}
 .pick-tile{aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -800,6 +812,109 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 .pick-tile.done .sub{color:var(--faint)}
 .pick-tile.just{animation:tile-pop .5s var(--spring) both}
 @keyframes tile-pop{from{transform:scale(.86);opacity:.2}to{transform:scale(1);opacity:1}}
+
+/* ---- the spin ----
+   A number is called from the floor and the host taps it. Between those two
+   things the board runs a spotlight round itself, slowing into the tile that
+   was asked for. Nothing is being chosen here — the number was already called
+   — so the sweep is short, it decelerates hard into its target, and it never
+   passes it after the last lap: it reads as the board finding the number
+   rather than picking one.
+
+   Both windows run it from the same timestamp rather than being told frame by
+   frame, so the projector and the laptop stay in step even if one repaints
+   late. */
+/* the deal-in animation is filled `both`, and a filled animation beats any
+   declarative opacity or transform — so it has to be taken off the tiles
+   before the sweep can dim them at all */
+.pick-grid.sweeping .pick-tile,
+.pick-grid.landing .pick-tile:not(.landed){animation:none}
+/* no transition: at the start of a sweep the spotlight moves faster than a
+   .12s ease could ever land, so it would only ever show a smear */
+.pick-grid.sweeping .pick-tile{transition:none}
+.pick-grid.sweeping .pick-tile:not(.spot){opacity:.42; transform:scale(.97)}
+.pick-grid.sweeping .pick-tile.spot{opacity:1; transform:scale(1.09);
+  border-color:var(--brand); z-index:3;
+  background:linear-gradient(168deg,rgba(var(--accent-rgb),.34),rgba(255,255,255,.09));
+  box-shadow:0 0 0 4px var(--brand), 0 0 46px rgba(var(--accent-rgb),.5), var(--sh-3);
+  /* set as a token rather than a colour, so it reaches the numeral without
+     having to beat the rule that paints it */
+  --num:#fff}
+.pick-grid.sweeping .pick-tile.spot .n{color:var(--brand)}
+
+/* the landing: the tile turns over once, swells, and the board goes quiet */
+.pick-grid.landing .pick-tile:not(.landed){opacity:.1; transform:scale(.9);
+  transition:opacity .4s var(--ease), transform .4s var(--ease)}
+/* the board draws back as the one tile comes forward, which is what keeps a
+   tile on the bottom row from swelling off the end of the wall */
+.pick-grid.landing{perspective:1400px; transform:scale(.93);
+  transition:transform .4s var(--ease)}
+.pick-grid .pick-tile.landed{animation:tile-land .72s cubic-bezier(.16,.84,.26,1) both;
+  z-index:4; border-color:var(--brand)}
+/* it swells, but not so far that a tile on the bottom row leaves the wall */
+@keyframes tile-land{
+  0%  {transform:scale(1.09) rotateY(0); box-shadow:0 0 0 3px var(--brand), var(--sh-3)}
+  38% {transform:scale(1.16) rotateY(180deg)}
+  72% {transform:scale(1.24) rotateY(360deg); box-shadow:0 0 0 5px var(--brand), var(--sh-3)}
+  100%{transform:scale(1.18) rotateY(360deg); box-shadow:0 0 0 5px var(--brand), var(--sh-3)}
+}
+.pick-grid .pick-tile.landed .n{animation:land-n .72s cubic-bezier(.16,.84,.26,1) both}
+@keyframes land-n{0%{transform:scale(1)} 50%{transform:scale(1.12)} 100%{transform:scale(1)}}
+
+/* a ring thrown off the tile as the spotlight stops on it */
+.pick-grid.landing::after{content:""; position:absolute; inset:0; pointer-events:none;
+  border-radius:inherit}
+.spot-ring{position:absolute; border-radius:var(--r-l); pointer-events:none; z-index:2;
+  border:3px solid var(--brand); animation:spot-ring .72s var(--ease) both}
+@keyframes spot-ring{from{opacity:.85; transform:scale(1)} to{opacity:0; transform:scale(1.9)}}
+
+@media(prefers-reduced-motion:reduce){
+  .pick-grid.sweeping .pick-tile:not(.spot),
+  .pick-grid.landing .pick-tile:not(.landed){opacity:1; transform:none}
+  .pick-grid .pick-tile.landed{animation:none}
+}
+
+/* ---- the company's own mark ----
+   Whatever is put here is somebody's actual logo, so it is given room and
+   never restyled: no filters, no recolouring, no cropping to a circle. It sits
+   at a fixed height and keeps its own proportions. */
+.stage-brandbar{display:flex; justify-content:flex-start; padding:clamp(14px,2vw,26px)
+  clamp(18px,3vw,50px) 0}
+.stage-brandbar:empty{display:none}
+.stage-mark{display:inline-flex; align-items:center; gap:11px; min-width:0}
+.stage-mark img{height:clamp(26px,3.2vw,46px); width:auto; max-width:min(38vw,340px);
+  object-fit:contain; display:block}
+.stage-mark span{font-family:var(--display); font-weight:var(--dw); letter-spacing:-.01em;
+  font-size:clamp(15px,1.7vw,23px); color:var(--ink-2); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis}
+.stage-mark.big img{height:clamp(52px,7vw,104px); max-width:min(70vw,620px)}
+.stage-mark.big span{font-size:clamp(22px,3.4vw,42px)}
+#show-brand .stage-mark img{height:24px}
+#show-brand .stage-mark span{font-size:14px; color:var(--muted)}
+
+/* ---- the stage settings sheet ---- */
+.set-sec{padding-block:16px; border-top:1px solid var(--line)}
+.set-sec:first-of-type{border-top:0; padding-top:6px}
+.set-sec > h3{font-size:12px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--faint); font-family:var(--sans); font-weight:700; margin-bottom:11px}
+.set-rows{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:11px}
+@media(max-width:520px){.set-rows{grid-template-columns:minmax(0,1fr)}}
+.set-rows .wide{grid-column:1/-1}
+.theme-row{display:flex; flex-wrap:wrap; gap:8px}
+.theme-chip{display:inline-flex; align-items:center; gap:8px; padding:6px 12px 6px 7px;
+  border-radius:999px; border:1px solid var(--line-2); background:var(--surface);
+  font-size:13px; font-weight:600; cursor:pointer; transition:.15s var(--ease)}
+.theme-chip:hover{border-color:var(--line-2); transform:translateY(-1px)}
+.theme-chip[aria-pressed=true]{border-color:var(--brand); box-shadow:var(--ring)}
+.theme-chip .sw{width:20px; height:20px; border-radius:99px; flex:none;
+  border:1.5px solid rgba(255,255,255,.7); box-shadow:0 1px 3px rgba(0,0,0,.28)}
+.logo-row{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.logo-prev{height:52px; min-width:52px; padding:7px 11px; border-radius:11px;
+  background:var(--sunken); border:1px solid var(--line); display:grid; place-items:center}
+.logo-prev img{max-height:38px; max-width:180px; object-fit:contain; display:block}
+.logo-prev.dark{background:#111427; border-color:#2A2F4A}
+.vol-row{display:flex; align-items:center; gap:12px}
+.vol-row input[type=range]{flex:1; accent-color:var(--brand)}
 
 /* ============================================================
    BIG SCREEN
@@ -893,6 +1008,7 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   --surface:#221E44; --surface-2:#2A2553; --sunken:#1B1838;
   --line:#3B3572; --line-2:#514A96;
   --brand:#A78BFF; --brand-2:#C4B2FF; --brand-soft:#2E2760; --brand-line:#4C4394;
+  --accent-rgb:167,139,255; --num:#EDE9FF;
   --ok:#4ADE9B; --gold:#FFC65C;
   color:var(--ink);
   background:
@@ -916,20 +1032,23 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
 .screen-stage .wheel-out{font-size:clamp(26px,4.4vw,56px)}
 .screen-stage .qno{letter-spacing:.24em}
 
-/* the tiles are lit panels on the stage rather than paper cards */
-#s-screen .pick-tile{
-  background:linear-gradient(168deg,rgba(255,255,255,.13),rgba(255,255,255,.04));
-  border-color:rgba(167,139,255,.42);
+/* The tiles are lit panels on the stage rather than paper cards.
+   Scoped by the stage's class and not by #s-screen on purpose: an id here
+   would out-specify every state below it, and the sweep would have no way to
+   light a tile up. */
+.screen-stage .pick-tile{
+  background:linear-gradient(168deg,rgba(var(--accent-rgb),.1),rgba(255,255,255,.055));
+  border-color:rgba(var(--accent-rgb),.42);
   box-shadow:0 14px 34px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.14)}
-#s-screen .pick-tile .n{color:#EDE9FF; text-shadow:0 0 26px rgba(167,139,255,.6)}
-#s-screen .pick-tile.done{background:rgba(255,255,255,.035); border-color:rgba(255,255,255,.09);
+.screen-stage .pick-tile .n{color:var(--num); text-shadow:0 0 26px rgba(var(--accent-rgb),.6)}
+.screen-stage .pick-tile.done{background:rgba(255,255,255,.035); border-color:rgba(255,255,255,.09);
   box-shadow:none}
-#s-screen .pick-tile.done .n{color:rgba(255,255,255,.34); text-shadow:none}
-#s-screen .pick-tile.done .sub{color:rgba(255,255,255,.4)}
+.screen-stage .pick-tile.done .n{color:rgba(255,255,255,.34); text-shadow:none}
+.screen-stage .pick-tile.done .sub{color:rgba(255,255,255,.4)}
 #s-screen .wheel-hold svg{filter:drop-shadow(0 18px 44px rgba(0,0,0,.55))}
 #s-screen .wheel-pin{border-top-color:#FFC65C;
   filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
-#s-screen .wheel-hub{background:#1B1838; border-color:rgba(255,255,255,.35)}
+#s-screen .wheel-hub{background:var(--sunken); border-color:rgba(255,255,255,.35)}
 #s-screen .wheel-out.on{color:#FFD98A; text-shadow:0 0 34px rgba(255,198,92,.45)}
 #s-screen .reveal-hold{border-color:var(--line-2); box-shadow:0 22px 60px rgba(0,0,0,.5)}
 
@@ -954,7 +1073,7 @@ table.tbl td.num{font-variant-numeric:tabular-nums}
   pointer-events:none; z-index:5; perspective:900px}
 .q-open .big-n{grid-area:1/1; font-family:var(--display); font-weight:var(--dw);
   font-size:clamp(110px,24vw,290px); line-height:1; color:var(--brand);
-  text-shadow:0 0 70px rgba(109,75,255,.45);
+  text-shadow:0 0 70px rgba(var(--accent-rgb),.45);
   animation:open-n 1.05s cubic-bezier(.2,.8,.24,1) both}
 @keyframes open-n{
   0%{opacity:0; transform:scale(.24) rotateY(-100deg)}

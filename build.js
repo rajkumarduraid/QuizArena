@@ -52,14 +52,14 @@ function checkImports(providers, consumers) {
   }
   if (problems.length) throw new Error('broken imports:\n  ' + problems.join('\n  '));
 }
-checkImports(['20-core.js', '22-avatars.js', '70-puzzles.js', '72-words.js', '74-puzzle-ui.js', '76-show.js'],
+checkImports(['20-core.js', '22-avatars.js', '70-puzzles.js', '72-words.js', '74-puzzle-ui.js', '75-brand.js', '76-show.js'],
              ['30-build.js', '40-views.js', '50-host.js', '60-play.js', '74-puzzle-ui.js', '76-show.js']);
 
 /* Order matters: core builds window.QA, the puzzle engines are a dependency of
    both the builder and the host, and the router in 60-play boots last. */
 const MODULES = ['20-core.js', '22-avatars.js', '72-words.js', '70-puzzles.js',
                  '40-views.js', '30-build.js', '50-host.js', '74-puzzle-ui.js',
-                 '76-show.js', '60-play.js'];
+                 '75-brand.js', '76-show.js', '60-play.js'];
 
 const parts = [
   head,

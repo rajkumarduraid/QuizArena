@@ -360,6 +360,247 @@ const { ck, done } = harness();
   ck(/Question only/.test(await p.textContent('#show-choices')), 'the choice sticks next time');
   await p.click('#show-choices');
 
+
+  /* ------------------------------------------------------------------ */
+  console.log('\n— the words on the screen are the host’s —');
+  await p.evaluate(() => { location.hash = '#/show/numbers'; });
+  await p.reload();
+  await p.waitForSelector('#show-stage .pick-grid', { timeout: 10000 });
+  ck((await p.textContent('#show-stage .show-head h1')).trim() === 'Pick a number',
+     'it starts with the wording it ships with');
+
+  await p.click('#show-setup');
+  await p.waitForSelector('#sw-board', { timeout: 6000 });
+  await p.fill('#sw-board', 'Choose a box');
+  await p.fill('#sw-call', 'Shout one out and we will open it.');
+  await p.fill('#sw-numLab', 'Box');
+  await p.waitForFunction(() =>
+    /Choose a box/.test(document.querySelector('#show-stage .show-head h1').textContent),
+    null, { timeout: 6000 });
+  ck(true, 'typing a heading changes the board as you type');
+  ck(/Shout one out/.test(await p.textContent('#show-stage .show-head p')),
+     'and the line under it');
+
+  await p.click('.modal-bg [data-close]');
+  await p.waitForFunction(() => !document.querySelector('.modal-bg.on'), null, { timeout: 4000 });
+  const [wScreen] = await Promise.all([c.waitForEvent('page'), p.click('#show-screen')]);
+  await wScreen.waitForSelector('#screen-stage .pick-grid', { timeout: 12000 });
+  ck((await wScreen.textContent('#screen-stage .show-head h1')).trim() === 'Choose a box',
+     'the room gets the host’s wording, not the default');
+
+  /* the number label follows into the question */
+  await p.evaluate(() => { window.QA.Show.state.spinPick = false; });
+  await p.click('#show-stage [data-n]');
+  await p.waitForSelector('#show-stage .show-q', { timeout: 8000 });
+  ck(/^Box /.test((await p.textContent('#show-stage .qno')).trim()),
+     'and what a number is called follows it into the question',
+     (await p.textContent('#show-stage .qno')).trim());
+  await p.click('#show-back');
+  await p.waitForSelector('#show-stage .pick-grid', { timeout: 8000 });
+
+  /* the host reloading their own window orphans the one they wrote, so the
+     screen is opened again below — which re-adopts that same window by name */
+  await wScreen.close();
+  await p.reload();
+  await p.waitForSelector('#show-stage .pick-grid', { timeout: 10000 });
+  ck((await p.textContent('#show-stage .show-head h1')).trim() === 'Choose a box',
+     'the wording is still there next time');
+
+  await p.click('#show-setup');
+  await p.waitForSelector('#sw-reset', { timeout: 6000 });
+  await p.click('#sw-reset');
+  await p.waitForFunction(() =>
+    /Pick a number/.test(document.querySelector('#show-stage .show-head h1').textContent),
+    null, { timeout: 6000 });
+  ck(true, 'and one button puts every line back');
+
+  /* ------------------------------------------------------------------ */
+  console.log('\n— the brand —');
+  await p.click('.modal-bg [data-close]');
+  await p.waitForFunction(() => !document.querySelector('.modal-bg.on'), null, { timeout: 4000 });
+  const [bScreen] = await Promise.all([c.waitForEvent('page'), p.click('#show-screen')]);
+  await bScreen.waitForSelector('#screen-stage .pick-grid', { timeout: 12000 });
+  await p.click('#show-setup');
+  await p.waitForSelector('#sw-themes [data-t]', { timeout: 6000 });
+  const before = await bScreen.evaluate(() =>
+    getComputedStyle(document.querySelector('#s-screen')).backgroundColor);
+  await p.click('[data-t="boardroom"]');
+  await p.waitForTimeout(250);
+  const after = await bScreen.evaluate(() =>
+    getComputedStyle(document.querySelector('#s-screen')).backgroundColor);
+  ck(before !== after, 'picking a theme repaints the room’s screen too', before + ' → ' + after);
+
+  const acc = await p.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--brand').trim());
+  const arena = await p.evaluate(() =>
+    window.QA.Brand.THEMES.filter(t => t.id === 'arena')[0].accent.toLowerCase());
+  ck(!!acc && acc.toLowerCase() !== arena,
+     'and the host’s window takes it too, not the one it shipped with', acc);
+
+  /* a colour that would be illegible must be pushed until it is not */
+  const rd = await p.evaluate(() => {
+    const lum = c => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); };
+      return .2126 * f(c[0]) + .7152 * f(c[1]) + .0722 * f(c[2]); };
+    const rgb = h => [1, 3, 5].map(i => parseInt(h.replace('#', '').substr(i - 1, 2), 16));
+    window.QA.Brand.set({ accent: '#FFF9C4' });   /* pale yellow: unreadable as a button */
+    window.QA.Brand.apply();
+    const app = rgb(getComputedStyle(document.documentElement).getPropertyValue('--brand').trim());
+    const stage = rgb(getComputedStyle(document.querySelector('#s-screen')).getPropertyValue('--brand').trim());
+    const ground = rgb(getComputedStyle(document.querySelector('#s-screen'))
+      .getPropertyValue('--sunken').trim());
+    const ratio = (a, b) => { const x = lum(a), y = lum(b);
+      return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+    return { onWhite: ratio(app, [255, 255, 255]), onStage: ratio(stage, ground) };
+  });
+  ck(rd.onWhite >= 4.5, 'a colour too pale for white button text is darkened until it reads',
+     rd.onWhite.toFixed(2) + ':1');
+  ck(rd.onStage >= 4.5, 'and the same colour stays bright enough on the dark stage',
+     rd.onStage.toFixed(2) + ':1');
+
+  /* a logo goes in by file and lands on the room's screen */
+  const logo = path.join(require('os').tmpdir(), 'qa-test-logo.png');
+  require('fs').writeFileSync(logo, Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAEAAAAAgCAYAAACinX6EAAAAPElEQVR42u3OMQEAAAgDoC252' +
+    'HOuA5KWR3sAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwzQJxzAABs1OBOwAAAABJRU5ErkJggg==',
+    'base64'));
+  await p.setInputFiles('#sw-file', logo);
+  await p.waitForFunction(() => !!document.querySelector('#sw-prev img'), null, { timeout: 8000 });
+  ck(true, 'a logo file is taken and previewed');
+  await bScreen.waitForSelector('#screen-brand .stage-mark img', { timeout: 8000 });
+  ck(true, 'and it is on the room’s screen, not only the host’s');
+  const keepsAlpha = await bScreen.$eval('#screen-brand .stage-mark img',
+    e => /^data:image\/(png|svg)/.test(e.src));
+  ck(keepsAlpha, 'kept as a PNG, so a transparent mark is not flattened onto white');
+
+  await p.fill('#sw-mark', 'Technology Town Hall');
+  await bScreen.waitForFunction(() =>
+    /Technology Town Hall/.test(document.querySelector('#screen-brand').textContent),
+    null, { timeout: 6000 });
+  ck(true, 'wording beside it follows');
+
+  /* put it back so the rest of the suite sees the shipped look */
+  await p.evaluate(() => {
+    window.QA.Brand.set({ theme: 'arena', accent: '', ground: '', logo: '', mark: '' });
+    window.QA.Brand.apply();
+  });
+  await p.click('.modal-bg [data-close]');
+  await bScreen.close();
+
+  /* ------------------------------------------------------------------ */
+  console.log('\n— the board runs before a number opens —');
+  await p.reload();
+  await p.waitForSelector('#show-stage .pick-grid', { timeout: 10000 });
+  /* an earlier block turned it off; turn it back on the way a host would */
+  await p.click('#show-setup');
+  await p.waitForSelector('.set-sec .switch .track', { timeout: 6000 });
+  if (!(await p.$eval('#sw-spin', e => e.checked))) await p.click('.set-sec .switch .track');
+  await p.click('.modal-bg [data-close]');
+  await p.waitForFunction(() => !document.querySelector('.modal-bg.on'), null, { timeout: 4000 });
+  const [sp] = await Promise.all([c.waitForEvent('page'), p.click('#show-screen')]);
+  await sp.waitForSelector('#screen-stage .pick-grid', { timeout: 12000 });
+
+  /* the suite has opened some numbers already, so take one that is still
+     there rather than assuming a position */
+  const want = await p.$eval('#show-stage .pick-grid [data-n]', e => Number(e.dataset.n));
+  const wantQ = await p.evaluate(n => {
+    const S = window.QA.Show.state;
+    const qs = window.QA.Build.getConfig().questions.filter(q => q.kind !== 'pz');
+    return (qs[S.order[n]] || {}).text || '';
+  }, want);
+
+  await p.click('#show-stage [data-n="' + want + '"]');
+  await p.waitForSelector('#show-stage .pick-grid.sweeping', { timeout: 4000 });
+  ck(true, 'tapping a number sets the board running rather than opening it');
+  ck(!!(await sp.$('#screen-stage .pick-grid.sweeping')),
+     'the room’s screen runs with it');
+  ck(!(await p.$('#show-stage [data-n]')),
+     'and nothing else can be tapped while it runs');
+
+  /* the spotlight has to actually move */
+  const lit = new Set();
+  for (let i = 0; i < 14; i++) {
+    const at = await p.$eval('#show-stage .pick-grid',
+      g => { const s = g.querySelector('.pick-tile.spot'); return s ? [].indexOf.call(g.children, s) : -1; });
+    if (at >= 0) lit.add(at);
+    await p.waitForTimeout(70);
+  }
+  ck(lit.size > 3, 'the spotlight travels the board', lit.size + ' tiles lit');
+
+  await p.waitForSelector('#show-stage .pick-grid.landing .pick-tile.landed', { timeout: 6000 });
+  const landedAt = await p.$eval('#show-stage .pick-grid',
+    g => [].indexOf.call(g.children, g.querySelector('.pick-tile.landed')));
+  ck(landedAt === want, 'and stops on the number that was actually called',
+     'landed on ' + landedAt + ', wanted ' + want);
+  const landedOn = await sp.$eval('#screen-stage .pick-grid',
+    g => [].indexOf.call(g.children, g.querySelector('.pick-tile.landed')));
+  ck(landedOn === want, 'the room sees it stop on the same one', String(landedOn));
+  const turns = await p.$eval('#show-stage .pick-tile.landed', e => getComputedStyle(e).animationName);
+  ck(turns === 'tile-land', 'the tile it stops on turns over', turns);
+
+  await p.waitForSelector('#show-stage .show-q', { timeout: 8000 });
+  ck((await p.textContent('#show-stage .show-text')).trim() === wantQ.trim(),
+     'and the question that opens is the one behind that number');
+  await sp.waitForSelector('#screen-stage .show-q', { timeout: 8000 });
+  ck((await sp.textContent('#screen-stage .show-text')).trim() === wantQ.trim(),
+     'in both windows');
+
+  await p.click('#show-back');
+  await p.waitForSelector('#show-stage .pick-grid', { timeout: 8000 });
+  await p.click('#show-setup');
+  await p.waitForSelector('.set-sec .switch .track', { timeout: 6000 });
+  if (await p.$eval('#sw-spin', e => e.checked)) await p.click('.set-sec .switch .track');
+  await p.click('.modal-bg [data-close]');
+  await p.waitForFunction(() => !document.querySelector('.modal-bg.on'), null, { timeout: 4000 });
+  await p.click('#show-stage [data-n]');
+  await p.waitForSelector('#show-stage .show-q', { timeout: 2500 });
+  ck(!(await p.$('.pick-grid.sweeping')), 'turned off, a number opens straight away');
+  await sp.close();
+
+  /* ------------------------------------------------------------------ */
+  console.log('\n— what the sounds are made of —');
+  /* the chain is built once, the first time anything plays, so this needs a
+     page where nothing has played yet */
+  const sp2 = await c.newPage();
+  await sp2.goto(URL + '#/show');
+  await sp2.waitForSelector('#s-show.on', { timeout: 10000 });
+  const built = await sp2.evaluate(() => {
+    const A = window.AudioContext || window.webkitAudioContext;
+    const seen = { osc: 0, noise: 0, filter: 0, limiter: 0, room: 0 };
+    const P = A.prototype;
+    const spy = (name, key) => {
+      const f = P[name];
+      P[name] = function () { seen[key]++; return f.apply(this, arguments); };
+    };
+    spy('createOscillator', 'osc'); spy('createBufferSource', 'noise');
+    spy('createBiquadFilter', 'filter'); spy('createDynamicsCompressor', 'limiter');
+    spy('createConvolver', 'room');
+    window.QA.Sound.unlock();
+    window.QA.Sound.sting();
+    return seen;
+  });
+  ck(built.limiter >= 1, 'everything goes through a limiter, so two sounds at once cannot clip');
+  ck(built.room >= 1, 'and through a room, so nothing lands flat');
+  ck(built.osc >= 6, 'the answer sting is a chord, not a beep', built.osc + ' voices');
+  ck(built.filter >= built.osc, 'every voice has a filter closing over it',
+     built.filter + ' filters for ' + built.osc + ' voices');
+
+  const quiet = await sp2.evaluate(() => {
+    const A = window.AudioContext || window.webkitAudioContext;
+    let n = 0;
+    const f = A.prototype.createOscillator;
+    A.prototype.createOscillator = function () { n++; return f.apply(this, arguments); };
+    window.QA.Sound.enabled = false; window.QA.Sound.sting(); window.QA.Sound.land();
+    const off = n;
+    window.QA.Sound.enabled = true; window.QA.Sound.volume = 0;
+    window.QA.Sound.sting(); window.QA.Sound.land();
+    const zero = n;
+    window.QA.Sound.volume = 1;
+    return { off: off, zero: zero };
+  });
+  ck(quiet.off === 0, 'muted, nothing is even built');
+  ck(quiet.zero === 0, 'and at zero volume nothing is built either');
+  await sp2.close();
+
   await p.close();
 
   /* ---------------------------------------------------------------------
