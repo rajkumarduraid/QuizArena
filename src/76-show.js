@@ -163,6 +163,7 @@ function open(role, tool) {
   paintTools();
   paintSound();
   paintChoices();
+  paintScreenBtn();
   render();
 }
 
@@ -206,6 +207,9 @@ function render() {
   const v = viewNow();
   Link.send({ t: 'state', s: v });
   paint(v, $('#show-stage'), true);
+  /* the window we wrote ourselves needs no message — we hold its document */
+  const st = screenStage();
+  if (st) paint(v, st, false);
 }
 
 /* ================================================================ painting */
@@ -593,25 +597,122 @@ function paintReveal(v, stage, live) {
   };
 }
 
-/* ======================================================= the second window */
+/* ======================================================= the second window
+
+   The audience window is *written*, not navigated to.
+
+   Pointing a new window at this page's own address is the obvious move and it
+   is the one that breaks: inside a sandboxed frame, a downloaded file opened
+   from some viewers, or anywhere the page is served from a blob, that address
+   either refuses to load a second time or loads into a context that cannot run
+   it — and the host is left staring at a black rectangle with no way to tell
+   what went wrong.
+
+   So we open a blank window instead, which is always same-origin with us, and
+   build its document out of the styles this page already carries. Nothing is
+   fetched, nothing is parsed twice, and there is no address to fail. It also
+   means the screen needs no messaging at all: it is a document we hold a
+   reference to, so render() writes straight into it.
+
+   The postMessage link stays for the other way in — a second window someone
+   opened by hand at #/screen — which still works where the address does. */
+let scr = null;          /* the window we wrote */
+let scrStage = null;     /* its stage element */
+
+/* Live only while the window is open and still holds the document we wrote.
+   A host who closes the screen and clicks again gets a fresh one. */
+function screenStage() {
+  try {
+    if (!scr || scr.closed) return null;
+    if (!scrStage || !scrStage.isConnected) return null;
+    return scrStage;
+  } catch (e) { return null; }
+}
+
+function screenHTML() {
+  /* every <style> this page carries, in order — they are all inline, so the
+     copy is complete and offline by construction */
+  let css = '';
+  $$('style').forEach(s => { css += '<style>' + s.textContent + '</style>'; });
+  const sprite = $('#qa-sprite');
+  return '<!doctype html><html lang="en" style="background:#101128">' +
+    '<head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>' + esc(Q.Build.getConfig().title || 'Quiz Arena') + ' — screen</title>' +
+    css +
+    /* the app's own body rule paints daylight; the stage is a dark room */
+    '<style>html,body{margin:0;background:#101128}body{overflow:hidden}' +
+    '#s-screen{height:100dvh}</style>' +
+    '</head><body>' +
+    (sprite ? sprite.outerHTML : '') +
+    '<section class="screen on" id="s-screen">' +
+      '<div class="show-stage screen-stage" id="screen-stage"></div>' +
+    '</section></body></html>';
+}
+
 function openScreen() {
-  const url = location.href.replace(/#.*$/, '') + '#/screen';
-  const w = window.open(url, 'qa-screen', 'width=1280,height=800');
-  if (!w) {
-    modal('<h2 style="font-size:21px">The pop-up was blocked</h2>' +
-      '<p class="dim" style="font-size:13.5px;margin-top:8px;line-height:1.6">Allow pop-ups for this page, or open ' +
-      'this address in a second window and drag it to the projector:</p>' +
-      '<p class="mono" style="margin-top:10px;font-size:13px;word-break:break-all;background:var(--sunken);' +
-      'padding:10px;border-radius:10px">' + esc(url) + '</p>' +
-      '<div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close>Got it</button></div>');
+  const cur = screenStage();
+  if (cur) { try { scr.focus(); } catch (e) {} render(); toast('The screen is already open', 'ok'); return; }
+
+  let w = null;
+  try { w = window.open('', 'qa-screen', 'width=1280,height=800'); } catch (e) { w = null; }
+  if (!w) { blockedNote(); return; }
+
+  let stage = null;
+  try {
+    w.document.open();
+    w.document.write(screenHTML());
+    w.document.close();
+    stage = w.document.getElementById('screen-stage');
+  } catch (e) { stage = null; }
+
+  /* A window we cannot write into is no use to anyone — say so rather than
+     leaving a blank one on the projector. */
+  if (!stage) {
+    try { w.close(); } catch (e) {}
+    blockedNote(true);
     return;
   }
-  Link.adopt(w);
-  /* it asks for the state itself once it has booted, but push one anyway in
-     case it boots before its listener is up */
-  setTimeout(render, 400);
-  setTimeout(render, 1200);
-  toast('Screen opened — drag it to the projector', 'ok');
+
+  scr = w; scrStage = stage;
+  /* a presenter's window wants to be full screen, and a double-click is the
+     one gesture that needs no chrome to discover */
+  try {
+    w.document.addEventListener('dblclick', () => {
+      const d = w.document, el = d.documentElement;
+      if (d.fullscreenElement) { if (d.exitFullscreen) d.exitFullscreen(); }
+      else if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    });
+  } catch (e) {}
+
+  render();
+  paintScreenBtn();
+  toast('Screen opened — drag it to the projector, double-click for full screen', 'ok');
+}
+
+function blockedNote(wrote) {
+  const url = location.href.replace(/#.*$/, '') + '#/screen';
+  modal('<h2 style="font-size:21px">' +
+    (wrote ? 'That window would not take the screen' : 'The pop-up was blocked') + '</h2>' +
+    '<p class="dim" style="font-size:13.5px;margin-top:8px;line-height:1.6">' +
+    (wrote
+      ? 'The browser opened a window but would not let this page draw into it. Open '
+      : 'Allow pop-ups for this page, or open ') +
+    'this address in a second window instead and drag it to the projector:</p>' +
+    '<p class="mono" style="margin-top:10px;font-size:13px;word-break:break-all;background:var(--sunken);' +
+    'padding:10px;border-radius:10px">' + esc(url) + '</p>' +
+    '<div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close>Got it</button></div>');
+}
+
+/* The button says which of the two states the host is in, because a window on
+   a projector is often behind this one and cannot be checked at a glance. */
+function paintScreenBtn() {
+  const b = $('#show-screen');
+  if (!b) return;
+  const on = !!screenStage();
+  b.classList.toggle('ghost', on);
+  b.innerHTML = ico(on ? 'check' : 'laptop') + (on ? 'Screen is open' : 'Open the screen');
+  b.title = on ? 'The audience window is open — click to bring it forward' : 'Open the audience window';
 }
 
 /* =================================================================== boot */
@@ -633,6 +734,9 @@ function init() {
   $('#show-edit').onclick = () => { location.hash = '#/host'; };
   $('#show-reset').onclick = startOver;
   $('#show-screen').onclick = openScreen;
+  /* the projector window is usually behind this one, so the only moment we can
+     notice it was closed is when the host looks back at the control */
+  addEventListener('focus', () => { if (SH.role === 'control') paintScreenBtn(); });
   $('#show-choices').onclick = () => {
     SH.choices = !SH.choices;
     sfx('swish');

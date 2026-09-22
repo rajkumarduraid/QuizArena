@@ -177,6 +177,17 @@ const { ck, done } = harness();
   await screen.waitForSelector('#screen-stage .pick-grid', { timeout: 12000 });
   ck(true, 'and it picks up the board from the control window');
 
+  /* The whole point of the rewrite: the second window is built by the first,
+     not sent to an address. An address is the thing that fails — in a frame,
+     in a viewer, in an artifact — and a host is left with a black rectangle. */
+  ck(/^about:blank/.test(screen.url()),
+     'the screen is written by the host window, not navigated to a URL', screen.url());
+  ck(await screen.$eval('#qa-sprite', e => !!e.querySelector('#i-check')),
+     'it carries the icon set, so nothing renders as an empty box');
+  ck(await screen.$eval('#screen-stage .pick-tile .n',
+       e => getComputedStyle(e).fontSize !== '16px'),
+     'and the stylesheet came with it');
+
   const liveButtons = await screen.$$eval('#screen-stage button:not([disabled])', e => e.length);
   ck(liveButtons === 0, 'the room\u2019s window has nothing to click', liveButtons + ' enabled buttons');
   /* other screens keep their own toolbars in the document, hidden — what
@@ -348,6 +359,94 @@ const { ck, done } = harness();
   await p.waitForSelector('#s-show.on', { timeout: 10000 });
   ck(/Question only/.test(await p.textContent('#show-choices')), 'the choice sticks next time');
   await p.click('#show-choices');
+
+  await p.close();
+
+  /* ---------------------------------------------------------------------
+     The case that started this: the page running inside a sandboxed frame,
+     which is how it is served from an artifact viewer. There the page's own
+     address will not load a second time in a top-level window, so the old
+     screen came up black. A written window has no address to fail.          */
+  console.log('\n— inside a sandboxed frame, the way a viewer serves it —');
+  const app = require('fs').readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const frame = '<!doctype html><meta charset="utf-8"><body style="margin:0">' +
+    '<iframe src="app.html" style="border:0;width:100vw;height:100vh" ' +
+    'sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals"></iframe>';
+
+  const c4 = await ctx(1400, 900);
+  await c4.route('https://qa.test/**', r => {
+    const u = r.request().url();
+    r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8',
+                body: /app\.html/.test(u) ? app : frame });
+  });
+  const fp = await c4.newPage();
+  await fp.goto('https://qa.test/frame.html');
+  const inner = () => fp.frames().filter(f => /app\.html/.test(f.url()))[0];
+  await fp.waitForFunction(() => document.querySelector('iframe'), null, { timeout: 8000 });
+  let fr = null;
+  for (let i = 0; i < 60 && !fr; i++) { fr = inner(); if (!fr) await fp.waitForTimeout(100); }
+  ck(!!fr, 'the app boots inside the frame');
+
+  await fr.waitForSelector('#s-home.on, #s-build.on, .screen.on', { timeout: 15000 });
+  await fr.evaluate(() => { location.hash = '#/host'; });
+  await fr.waitForSelector('#s-build.on', { timeout: 10000 });
+  await fr.click('#btn-sample');
+  await fr.waitForFunction(() =>
+    (JSON.parse(localStorage.getItem('qa:config:v1') || '{}').questions || []).length === 6,
+    null, { timeout: 8000 });
+  await fr.evaluate(() => { location.hash = '#/show/numbers'; });
+  await fr.waitForSelector('#show-stage .pick-grid', { timeout: 10000 });
+
+  const [fscreen] = await Promise.all([
+    c4.waitForEvent('page'),
+    fr.click('#show-screen')
+  ]);
+  await fscreen.waitForSelector('#screen-stage .pick-grid', { timeout: 15000 });
+  ck(true, 'the screen still opens, and the room sees the board');
+  const fTiles = await fscreen.$$eval('#screen-stage .pick-tile .n', e => e.map(x => x.textContent.trim()));
+  ck(fTiles.length === 6, 'all six numbers on it', fTiles.join(','));
+  const fBg = await fscreen.evaluate(() =>
+    getComputedStyle(document.querySelector('#s-screen')).backgroundColor);
+  ck(/^rgba?\((\d+), (\d+), (\d+)/.test(fBg) &&
+     fBg.match(/\d+/g).slice(0, 3).reduce((a, x) => a + (+x), 0) < 200,
+     'on the dark stage, not a black rectangle', fBg);
+
+  await fr.click('#show-stage [data-n="0"]');
+  await fscreen.waitForSelector('#screen-stage .show-q', { timeout: 12000 });
+  ck((await fscreen.textContent('#screen-stage .show-text')).trim().length > 5,
+     'and the host can still put a question on it');
+  await fr.click('#show-reveal');
+  await fscreen.waitForSelector('#screen-stage .show-answers.revealed', { timeout: 12000 });
+  ck((await fscreen.$$('#screen-stage .show-ans.right')).length === 1,
+     'right and wrong land in the room as they should');
+
+  /* closing it and asking again gets a fresh one rather than nothing */
+  await fscreen.close();
+  await fp.waitForTimeout(200);
+  const [fscreen2] = await Promise.all([
+    c4.waitForEvent('page'),
+    fr.click('#show-screen')
+  ]);
+  await fscreen2.waitForSelector('#screen-stage', { timeout: 15000 });
+  ck(true, 'closing the screen and asking again opens another');
+  await fscreen2.close();
+
+  /* The fallback the blocked-pop-up note hands out: a window the host opened
+     by hand at that address. It has no handle to us, so it goes on listening
+     over the channel — that path has to keep working too. */
+  console.log('\n— a screen window opened by hand at the address —');
+  const byHand = await c4.newPage();
+  await byHand.goto('https://qa.test/app.html#/screen');
+  await byHand.waitForSelector('#s-screen.on', { timeout: 15000 });
+  await fr.click('#show-back');
+  await byHand.waitForSelector('#screen-stage .pick-grid', { timeout: 15000 });
+  ck(true, 'it finds the control window on its own and picks up the board');
+  await fr.click('#show-stage [data-n="1"]');
+  await byHand.waitForSelector('#screen-stage .show-q', { timeout: 15000 });
+  ck((await byHand.textContent('#screen-stage .show-text')).trim() ===
+     (await fr.textContent('#show-stage .show-text')).trim(),
+     'and follows the host from there');
+  await byHand.close();
 
   ck(errs.length === 0, 'no page errors', errs.slice(0, 3).join(' | '));
   await b.close();

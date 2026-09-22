@@ -171,15 +171,28 @@ projector. From then on there are two views of the same thing:
 | **The room's window** | A dark stage: the question, the options, and the right/wrong animation, sized for the back of a room. No toolbar, no buttons, nothing to click and nothing to give the answer away. |
 | **Your window** | The same content, plus every control: open a number, show the answer, go back, spin, start over. |
 
-They talk to each other three ways at once — the window handle, a
-BroadcastChannel and a storage mirror — because no single one of them is
-reliable from a page opened as a file. Only indices travel, never content:
-both windows read the same quiz out of this browser, so a picture never goes
-over and the messages stay tiny.
+That second window is **built by your window, not sent to an address**. The
+obvious way round — point a new window at this page's own URL — is the way that
+breaks: inside a frame, in some file viewers, or anywhere the page is served
+from a blob, that URL either refuses to load again or loads somewhere it cannot
+run, and you are left staring at a black rectangle with nothing to click.
+Instead the screen is opened blank and its document written out of the styles
+this page already carries. Nothing is fetched, nothing is parsed twice, and
+there is no address left to fail. It also means there is nothing to send: your
+window holds that document and draws into it directly.
 
-If the pop-up is blocked, it hands you the address to open in a second window
-yourself. You can also run the whole thing in one window if you would rather —
-the controls simply sit under the question.
+Double-click the screen window to put it full screen. **Open the screen** turns
+into **Screen is open** while it is up, and brings it forward if it has slipped
+behind; close it and the button goes back.
+
+If the pop-up is blocked outright, it hands you the address to open in a second
+window yourself — and a window opened that way still works, listening over a
+BroadcastChannel and a storage mirror. Only indices travel, never content: both
+windows read the same quiz out of this browser, so a picture never goes over and
+the messages stay tiny.
+
+You can also run the whole thing in one window if you would rather — the
+controls simply sit under the question.
 
 Three tools share the screen, and you switch between them at the top.
 
